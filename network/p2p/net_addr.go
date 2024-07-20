@@ -1,8 +1,9 @@
 package p2p
 
 import (
-	"bytes"
-	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
 )
 
 // NetAddr ...
@@ -18,35 +19,25 @@ func NewIPv4(a, b, c, d uint8) *IPv4 {
 	return &IPv4{a, b, c, d}
 }
 
-// Serialize ...
-func (na NetAddr) Serialize() ([]byte, error) {
-	var buf bytes.Buffer
-
-	if na.Time != 0 {
-		if err := binary.Write(&buf, binary.LittleEndian, na.Time); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := binary.Write(&buf, binary.LittleEndian, na.Services); err != nil {
-		return nil, err
-	}
-
-	if _, err := buf.Write(na.IP.ToIPv6()); err != nil {
-		return nil, err
-	}
-
-	if err := binary.Write(&buf, binary.BigEndian, na.Port); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 // IPv4 ...
 type IPv4 [4]byte
 
-// ToIPv6 ...
-func (ip IPv4) ToIPv6() []byte {
-	return append([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}, ip[:]...)
+func (ip IPv4) MarshalBinary() ([]byte, error) {
+	return append([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}, ip[:]...), nil
+}
+
+func (ip IPv4) UnmarshalBinary(r io.Reader) error {
+	data := make([]byte, 16)
+	if _, err := r.Read(data); err != nil {
+		return fmt.Errorf("unmarshal IPv4: %+v", err)
+	}
+
+	if len(data) != 16 {
+		return errors.New("invalid IPv4: wrong length")
+	}
+
+	ipv4 := data[12:16]
+	copy(ip[:], ipv4)
+
+	return nil
 }

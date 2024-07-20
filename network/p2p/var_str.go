@@ -1,9 +1,9 @@
 package p2p
 
 import (
-	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
+	"fmt"
+	"io"
 )
 
 // VarStr ...
@@ -12,26 +12,27 @@ type VarStr struct {
 	String string
 }
 
+func (v *VarStr) UnmarshalBinary(r io.Reader) error {
+	lengthBuf := make([]byte, 1)
+	if _, err := r.Read(lengthBuf); err != nil {
+		return fmt.Errorf("varStr.UnmarshalBinary: %+v", err)
+	}
+	v.Length = uint8(lengthBuf[0])
+
+	stringBuf := make([]byte, v.Length)
+	if _, err := r.Read(stringBuf); err != nil {
+		return fmt.Errorf("varStr.UnmarshalBinary: %+v", err)
+	}
+	v.String = string(stringBuf)
+
+	return nil
+}
+
 func NewVarStr(str string) VarStr {
 	return VarStr{
 		Length: uint8(len(str)), // TODO: implement var_int
 		String: str,
 	}
-}
-
-// Serialize ...
-func (v VarStr) Serialize() ([]byte, error) {
-	var buf bytes.Buffer
-
-	if err := binary.Write(&buf, binary.LittleEndian, v.Length); err != nil {
-		return nil, err
-	}
-
-	if _, err := buf.Write([]byte(v.String)); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func checksum(data []byte) [checksumLength]byte {
