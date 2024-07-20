@@ -112,7 +112,6 @@ func (d Decoder) decodeStruct(v interface{}) error {
 		if err := d.Decode(val.Field(i).Addr().Interface()); err != nil {
 			return err
 		}
-
 	}
 
 	return nil

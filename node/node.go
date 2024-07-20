@@ -44,16 +44,16 @@ func (no Node) Run(nodeAddr string) error {
 
 	version := p2p.MsgVersion{
 		Version:   p2p.Version,
-		Services:  p2p.SrvNodeNetwork,
+		Services:  1,
 		Timestamp: time.Now().UTC().Unix(),
 		AddrRecv: p2p.NetAddr{
-			Services: p2p.SrvNodeNetwork,
-			IP:       &peerAddr.IP,
+			Services: 1,
+			IP:       peerAddr.IP,
 			Port:     peerAddr.Port,
 		},
 		AddrFrom: p2p.NetAddr{
-			Services: p2p.SrvNodeNetwork,
-			IP:       p2p.NewIPv4(127, 0, 0, 1),
+			Services: 1,
+			IP:       *p2p.NewIPv4(127, 0, 0, 1),
 			Port:     8333,
 		},
 		Nonce:       nonce(),

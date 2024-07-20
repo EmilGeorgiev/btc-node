@@ -8,9 +8,9 @@ import (
 
 // NetAddr ...
 type NetAddr struct {
-	Time     uint32
+	//Time     uint32
 	Services uint64
-	IP       *IPv4
+	IP       IPv4
 	Port     uint16
 }
 

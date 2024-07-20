@@ -103,6 +103,8 @@ func NewMessage(cmd, network string, payload interface{}) (*Message, error) {
 		Payload: serializedPayload,
 	}
 
+	fmt.Printf("Paylaod msgVersion: %v\n", serializedPayload)
+
 	return &msg, nil
 }
 

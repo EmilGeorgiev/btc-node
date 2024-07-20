@@ -1,6 +1,8 @@
 package network
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/node"
 	"testing"
@@ -56,7 +58,18 @@ func TestConnect(t *testing.T) {
 	}
 
 	fmt.Println("Running node")
-	if err = n.Run("185.217.241.142:8333"); err != nil {
+	if err = n.Run("94.72.143.47:8333"); err != nil {
 		panic(fmt.Sprintf("failed during running the node: %s", err))
 	}
+}
+
+func TestBbb(t *testing.T) {
+	var i uint64
+	i = 1
+
+	var buf bytes.Buffer
+	err := binary.Write(&buf, binary.LittleEndian, i)
+	fmt.Println(err)
+
+	fmt.Println(buf.Bytes())
 }
