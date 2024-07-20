@@ -58,7 +58,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	fmt.Println("Running node")
-	if err = n.Run("94.72.143.47:8333"); err != nil {
+	if err = n.Run("79.124.7.253:8333"); err != nil {
 		panic(fmt.Sprintf("failed during running the node: %s", err))
 	}
 }

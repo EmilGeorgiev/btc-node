@@ -68,6 +68,11 @@ func (d Decoder) Decode(v interface{}) error {
 		if err != nil {
 			return err
 		}
+
+	case *[hashLength]byte:
+		if err := d.decodeArray(hashLength, val[:]); err != nil {
+			return err
+		}
 	case Unmarshaler:
 		err := val.UnmarshalBinary(d.r)
 		if err != nil {

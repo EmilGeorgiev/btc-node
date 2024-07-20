@@ -22,6 +22,10 @@ func NewIPv4(a, b, c, d uint8) *IPv4 {
 // IPv4 ...
 type IPv4 [4]byte
 
+func (ip IPv4) String() string {
+	return fmt.Sprintf("%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3])
+}
+
 func (ip IPv4) MarshalBinary() ([]byte, error) {
 	return append([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}, ip[:]...), nil
 }
