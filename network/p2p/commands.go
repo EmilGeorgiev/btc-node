@@ -60,7 +60,7 @@ var commands = map[string][commandLength]byte{
 	cmdPong:        newCommand(cmdPong),
 	cmdSendcmpct:   newCommand(cmdSendcmpct),
 	cmdGetheaders:  newCommand(cmdGetheaders),
-	cmdAddr:        newCommand(),
+	cmdAddr:        newCommand(cmdAddr),
 	cmdInv:         newCommand(cmdInv),
 	cmdGetdata:     newCommand(cmdGetdata),
 	cmdNotfound:    newCommand(cmdNotfound),
