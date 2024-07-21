@@ -1,9 +1,11 @@
-package p2p
+package main
 
 import (
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/common"
 	"math"
 	"net"
+	"time"
 )
 
 const (
@@ -12,11 +14,12 @@ const (
 )
 
 type Config struct {
-	PeerAddrs        []Addr
-	Network          string
-	UserAgent        string
-	PingIntervalSecs int64
-	PingTimeoutSecs  int64
+	PeerAddrs    []common.Addr
+	Network      string
+	UserAgent    string
+	PingInterval time.Duration
+	PingTimeout  time.Duration
+	ReadTimeout  time.Duration
 }
 
 func (c Config) Validate() error {

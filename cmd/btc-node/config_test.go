@@ -1,20 +1,19 @@
-package p2p_test
+package main
 
 import (
-	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"testing"
 )
 
 func TestConfigValidate(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    p2p.Config
+		config    Config
 		expectErr bool
 	}{
 		{
 			name: "valid configuration mainnet",
-			config: p2p.Config{
-				PeerAddrs: []p2p.Addr{
+			config: Config{
+				PeerAddrs: []Addr{
 					{IP: "192.168.1.1", Port: 8333},
 					{IP: "10.0.0.1", Port: 18333},
 				},
@@ -24,8 +23,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		{
 			name: "valid configuration simnet",
-			config: p2p.Config{
-				PeerAddrs: []p2p.Addr{
+			config: Config{
+				PeerAddrs: []Addr{
 					{IP: "192.168.1.1", Port: 8333},
 				},
 				Network: "simnet",
@@ -34,8 +33,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		{
 			name: "invalid IP address",
-			config: p2p.Config{
-				PeerAddrs: []p2p.Addr{
+			config: Config{
+				PeerAddrs: []Addr{
 					{IP: "invalid_ip", Port: 8333},
 				},
 				Network: "mainnet",
@@ -44,8 +43,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		{
 			name: "invalid port number (too low)",
-			config: p2p.Config{
-				PeerAddrs: []p2p.Addr{
+			config: Config{
+				PeerAddrs: []Addr{
 					{IP: "192.168.1.1", Port: -1},
 				},
 				Network: "mainnet",
@@ -54,8 +53,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		{
 			name: "invalid port number (too high)",
-			config: p2p.Config{
-				PeerAddrs: []p2p.Addr{
+			config: Config{
+				PeerAddrs: []Addr{
 					{IP: "192.168.1.1", Port: 70000},
 				},
 				Network: "mainnet",
@@ -64,8 +63,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		{
 			name: "invalid network",
-			config: p2p.Config{
-				PeerAddrs: []p2p.Addr{
+			config: Config{
+				PeerAddrs: []Addr{
 					{IP: "192.168.1.1", Port: 8333},
 				},
 				Network: "invalidnet",

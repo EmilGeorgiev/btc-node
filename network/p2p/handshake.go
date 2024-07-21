@@ -3,13 +3,14 @@ package p2p
 import (
 	"bytes"
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/common"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
 	"log"
 	"net"
 )
 
-func CreateHandshake(peerAddr Addr, network, userAgent string) (Handshake, error) {
+func CreateHandshake(peerAddr common.Addr, network, userAgent string) (Handshake, error) {
 	log.Println("Initialize handshake with peer: ", peerAddr.String())
 	conn, err := net.Dial("tcp", peerAddr.String())
 	if err != nil {
@@ -27,7 +28,6 @@ func CreateHandshake(peerAddr Addr, network, userAgent string) (Handshake, error
 		return Handshake{}, fmt.Errorf("failed to send MsgVersion to the peer: %s ", err)
 	}
 
-	fmt.Println("11111111")
 	msgHeader := make([]byte, MsgHeaderLength)
 	versionMsgIsReceived := false
 	var handshake Handshake
@@ -125,16 +125,16 @@ type Handshake struct {
 }
 
 // Addr ...
-type Addr struct {
-	IP   string
-	Port int64
-}
+//type Addr struct {
+//	IP   string
+//	Port int64
+//}
 
-func (a Addr) String() string {
-	return fmt.Sprintf("%s:%d", a.IP, a.Port)
-}
+//func (a Addr) String() string {
+//	return fmt.Sprintf("%s:%d", a.IP, a.Port)
+//}
 
-func createMsgVersion(peerAddr Addr, network, userAgent string) ([]byte, error) {
+func createMsgVersion(peerAddr common.Addr, network, userAgent string) ([]byte, error) {
 	ip := net.ParseIP(peerAddr.IP)
 	a := IPv4{}
 	copy(a[:], ip.To4())

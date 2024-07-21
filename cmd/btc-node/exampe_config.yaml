@@ -1,0 +1,8 @@
+peeraddrs:
+  - ip: "192.168.1.1"
+    port: 8333
+  - ip: "192.168.1.2"
+    port: 8333
+network: "mainnet"
+useragent: "/MyBitcoinNode:0.1.0/"
+readtimeout: "30s"
