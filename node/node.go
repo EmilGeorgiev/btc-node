@@ -9,8 +9,8 @@ import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"io"
 	"log"
-	"math/rand"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -29,57 +29,110 @@ const (
 
 type Node struct {
 	Network         string
-	NetworkMagic    p2p.Magic
 	UserAgent       string
-	PingCh          chan peerPing
-	PongCh          chan uint64
 	Peers           map[string]*p2p.Peer
 	stop            chan struct{}
 	readConnTimeout time.Duration
+	errors          chan connErr
 	stopReports     chan StopReports
+
+	m sync.Mutex
 }
 
 // New returns a new Node.
 func New(network, userAgent string, readConnTimeout time.Duration) (*Node, error) {
-	networkMagic, ok := p2p.Networks[network]
+	_, ok := p2p.Networks[network]
 	if !ok {
 		return nil, fmt.Errorf("unsupported network %s", network)
 	}
 
 	return &Node{
 		Network:         network,
-		NetworkMagic:    networkMagic,
 		UserAgent:       userAgent,
 		Peers:           make(map[string]*p2p.Peer),
 		readConnTimeout: readConnTimeout,
 		stop:            make(chan struct{}),
 		stopReports:     make(chan StopReports),
+		errors:          make(chan connErr, 100),
 	}, nil
 }
 
-func (n Node) deletePeer(p p2p.Peer) {}
-func (n Node) addPeer(peer p2p.Peer) {}
+func (n Node) ConnectToPeers(peerAddrs []common.Addr) {
+	// initialize outgoing connections to the list of peers
+	for _, peerAddr := range peerAddrs {
+		n.initilizeOutgoingConnection(peerAddr)
+	}
+}
 
-func (n Node) initilizeOutgoingConnection(peerAddr common.Addr) error {
+func (n Node) Sync() {}
+func (n Node) Stop() StopReports {
+	close(n.stop)
+
+	stopReports := <-n.stopReports
+	return stopReports
+}
+
+type connErr struct {
+	peer p2p.Peer
+	err  error
+}
+
+func (n Node) monitoringConnections() {
+	go func() {
+		for {
+			select {
+			case <-n.stop:
+				return
+			case err := <-n.errors:
+				// TODO: here can be implemented a logic for handling errors that rise during communication between peers.
+				// For example we can implement a logic like:
+				//      - reconnect to the peer depending of the error.
+				//      - connect to another peer
+				//      - save some data in DB
+				//      - send notification
+				//      - or something else
+				//
+				// For now we just log the error.
+				log.Println(err.err.Error())
+			}
+		}
+	}()
+}
+
+func (n Node) deletePeer(p p2p.Peer) {
+	n.m.Lock()
+	defer n.m.Unlock()
+	delete(n.Peers, p.Address)
+
+}
+
+func (n Node) addPeer(peer p2p.Peer) {
+	n.m.Lock()
+	defer n.m.Unlock()
+	n.Peers[peer.Address] = &peer
+}
+
+func (n Node) initilizeOutgoingConnection(peerAddr common.Addr) {
 	handshake, err := p2p.CreateHandshake(peerAddr, n.Network, n.UserAgent)
 	if err != nil {
-		log.Println("Errr: ", err.Error())
-		return err
+		n.errors <- connErr{
+			peer: p2p.Peer{Address: peerAddr.String()},
+			err:  err,
+		}
 	}
 
 	n.addPeer(handshake.Peer)
-	go n.manageMessagesWithPeer(handshake.Peer)
-	return nil
+	n.manageMessagesWithPeer(handshake.Peer)
 }
 
 func (n Node) manageMessagesWithPeer(peer p2p.Peer) {
-	defer func() {
-		log.Println("Close the connection with peer: ", peer.Address)
-		n.deletePeer(peer)
-		peer.Connection.Close()
-	}()
-
 	go func() {
+		defer func() {
+			log.Println("Close the connection with peer: ", peer.Address)
+			n.deletePeer(peer)
+			peer.Connection.Close()
+		}()
+
 		conn := peer.Connection
 		tmp := make([]byte, p2p.MsgHeaderLength)
 		for {
@@ -95,16 +148,18 @@ func (n Node) manageMessagesWithPeer(peer p2p.Peer) {
 					if errors.As(err, &netErr) && netErr.Timeout() {
 						continue
 					}
-					log.Println("receive an error while reading from connection with peer: ", peer.Address)
+					n.errors <- connErr{
+						peer: peer,
+						err:  fmt.Errorf("receive an error while reading from connection with peer: %s. Err: %s", peer.Address, err),
+					}
 					return
 				}
 				if err = n.handleMessage(tmp[:bn], conn); err != nil {
-					log.Println(err.Error())
+					n.errors <- connErr{peer: peer, err: err}
 					return
 				}
 			}
 		}
-
 	}()
 }
 
@@ -132,11 +187,11 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		if err := n.handlePing(&msgHeader, conn); err != nil {
 			return fmt.Errorf("failed to handle 'ping': %v\n", err)
 		}
-	case "pong":
-		if err := n.handlePong(&msgHeader, conn); err != nil {
-			fmt.Printf("failed to handle 'pong': %+v\n", err)
-			return nil
-		}
+	//case "pong":
+	//	if err := n.handlePong(&msgHeader, conn); err != nil {
+	//		fmt.Printf("failed to handle 'pong': %+v\n", err)
+	//		return nil
+	//	}
 	case "inv":
 		if err := n.handleInv(&msgHeader, conn); err != nil {
 			return fmt.Errorf("failed to handle 'inv': %+v\n", err)
@@ -150,27 +205,83 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		buf := make([]byte, msgHeader.Length)
 		nn, err := conn.Read(buf)
 		if err != nil {
-			return fmt.Errorf("failed to read payalod. Err: %s\n", err)
+			return fmt.Errorf("failed to read payalod of msg for which we don't have handler. Err: %s\n", err)
 		}
 		fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), buf[:nn])
 	}
 	return nil
 }
 
-func (n Node) ConnectToPeers(peerAddrs []common.Addr) error {
-	// initialize outgoing connections to the list of peers
-	for _, peerAddr := range peerAddrs {
-		n.initilizeOutgoingConnection(peerAddr)
+func (n Node) handlePing(header *p2p.MessageHeader, conn net.Conn) error {
+	var ping p2p.MsgPing
+
+	lr := io.LimitReader(conn, int64(header.Length))
+	if err := binary.NewDecoder(lr).Decode(&ping); err != nil {
+		return err
 	}
+
+	pong, err := p2p.NewPongMsg(n.Network, ping.Nonce)
+	if err != nil {
+		return err
+	}
+
+	msg, err := binary.Marshal(pong)
+	if err != nil {
+		return err
+	}
+
+	log.Println("sending pong message to peer:", conn.RemoteAddr())
+	_, err = conn.Write(msg)
+	return err
+}
+
+//func (n Node) handlePong(header *p2p.MessageHeader, conn io.ReadWriter) error {
+//	var pong p2p.MsgPing
+//
+//	lr := io.LimitReader(conn, int64(header.Length))
+//	if err := binary.NewDecoder(lr).Decode(&pong); err != nil {
+//		return err
+//	}
+//
+//	n.PongCh <- pong.Nonce
+//
+//	return nil
+//}
+
+func (n Node) handleTx(header *p2p.MessageHeader, conn io.ReadWriter) error {
+	var tx p2p.MsgTx
+	lr := io.LimitReader(conn, int64(header.Length))
+	return binary.NewDecoder(lr).Decode(&tx)
+}
+
+func (n Node) handleVerack(header *p2p.MessageHeader, conn io.ReadWriter) error {
 	return nil
 }
 
-func (n Node) Sync() {}
-func (n Node) Stop() StopReports {
-	close(n.stop)
+func (n Node) handleInv(header *p2p.MessageHeader, conn io.ReadWriter) error {
+	var inv p2p.MsgInv
 
-	stopReports := <-n.stopReports
-	return stopReports
+	lr := io.LimitReader(conn, int64(header.Length))
+	if err := binary.NewDecoder(lr).Decode(&inv); err != nil {
+		return err
+	}
+
+	var getData p2p.MsgGetData
+	getData.Inventory = inv.Inventory
+	getData.Count = inv.Count
+
+	getDataMsg, err := p2p.NewMessage("getdata", n.Network, getData)
+	if err != nil {
+		return err
+	}
+
+	msg, err := binary.Marshal(getDataMsg)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(msg)
+	return err
 }
 
 type StopReports struct {
@@ -178,9 +289,10 @@ type StopReports struct {
 	Errors        []error
 }
 
-func nonce() uint64 {
-	return rand.Uint64()
-}
+//type peerPing struct {
+//	nonce  uint64
+//	peerID string
+//}
 
 //func (n Node) handleVersion(header *p2p.MessageHeader, conn net.Conn) error {
 //	var version p2p.MsgVersion
@@ -218,171 +330,85 @@ func nonce() uint64 {
 //	return nil
 //}
 
-func (n Node) handlePing(header *p2p.MessageHeader, conn net.Conn) error {
-	var ping p2p.MsgPing
+//func (n Node) monitorPeers() {
+//	peerPings := make(map[uint64]string)
+//
+//	for {
+//		select {
+//		case nonce := <-n.PongCh:
+//			peerID := peerPings[nonce]
+//			if peerID == "" {
+//				break
+//			}
+//			peer := n.Peers[peerID]
+//			if peer == nil {
+//				break
+//			}
+//
+//			peer.PongCh <- nonce
+//			delete(peerPings, nonce)
+//
+//		case pp := <-n.PingCh:
+//			peerPings[pp.nonce] = pp.peerID
+//		}
+//	}
+//}
 
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&ping); err != nil {
-	}
+//func (n *Node) monitorPeer(peer *p2p.Peer) {
+//	for {
+//		time.Sleep(pingIntervalSec * time.Second)
+//
+//		ping, nonce, err := p2p.NewPingMsg(n.Network)
+//		if err != nil {
+//			fmt.Printf("monitorPeer, NewPingMsg: %v\n", err)
+//		}
+//
+//		msg, err := binary.Marshal(ping)
+//		if err != nil {
+//			fmt.Printf("monitorPeer, binary.Marshal: %v\n", err)
+//		}
+//
+//		if _, err := peer.Connection.Write(msg); err != nil {
+//			n.disconnectPeer(peer.ID())
+//		}
+//
+//		fmt.Printf("sent 'ping' to %s", peer)
+//
+//		n.PingCh <- peerPing{
+//			nonce:  nonce,
+//			peerID: peer.ID(),
+//		}
+//
+//		t := time.NewTimer(pingTimeoutSec * time.Second)
+//
+//		select {
+//		case pn := <-peer.PongCh:
+//			if pn != nonce {
+//				fmt.Printf("nonce doesn't match for %s: want %d, got %d\n", peer, nonce, pn)
+//				n.disconnectPeer(peer.ID())
+//				return
+//			}
+//			fmt.Printf("got 'pong' from %s\n", peer)
+//		case <-t.C:
+//			// TODO: clean up peerPings, memory leak possible
+//			n.disconnectPeer(peer.ID())
+//			return
+//		}
+//
+//		t.Stop()
+//	}
+//}
 
-	pong, err := p2p.NewPongMsg(n.Network, ping.Nonce)
-	if err != nil {
-		return err
-	}
-
-	msg, err := binary.Marshal(pong)
-	if err != nil {
-		return err
-	}
-
-	log.Println("sending pong message to peer:", conn.RemoteAddr())
-	if _, err = conn.Write(msg); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (n Node) monitorPeers() {
-	peerPings := make(map[uint64]string)
-
-	for {
-		select {
-		case nonce := <-n.PongCh:
-			peerID := peerPings[nonce]
-			if peerID == "" {
-				break
-			}
-			peer := n.Peers[peerID]
-			if peer == nil {
-				break
-			}
-
-			peer.PongCh <- nonce
-			delete(peerPings, nonce)
-
-		case pp := <-n.PingCh:
-			peerPings[pp.nonce] = pp.peerID
-		}
-	}
-}
-
-func (n *Node) monitorPeer(peer *p2p.Peer) {
-	for {
-		time.Sleep(pingIntervalSec * time.Second)
-
-		ping, nonce, err := p2p.NewPingMsg(n.Network)
-		if err != nil {
-			fmt.Printf("monitorPeer, NewPingMsg: %v\n", err)
-		}
-
-		msg, err := binary.Marshal(ping)
-		if err != nil {
-			fmt.Printf("monitorPeer, binary.Marshal: %v\n", err)
-		}
-
-		if _, err := peer.Connection.Write(msg); err != nil {
-			n.disconnectPeer(peer.ID())
-		}
-
-		fmt.Printf("sent 'ping' to %s", peer)
-
-		n.PingCh <- peerPing{
-			nonce:  nonce,
-			peerID: peer.ID(),
-		}
-
-		t := time.NewTimer(pingTimeoutSec * time.Second)
-
-		select {
-		case pn := <-peer.PongCh:
-			if pn != nonce {
-				fmt.Printf("nonce doesn't match for %s: want %d, got %d\n", peer, nonce, pn)
-				n.disconnectPeer(peer.ID())
-				return
-			}
-			fmt.Printf("got 'pong' from %s\n", peer)
-		case <-t.C:
-			// TODO: clean up peerPings, memory leak possible
-			n.disconnectPeer(peer.ID())
-			return
-		}
-
-		t.Stop()
-	}
-}
-
-func (n Node) handlePong(header *p2p.MessageHeader, conn io.ReadWriter) error {
-	var pong p2p.MsgPing
-
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&pong); err != nil {
-		return err
-	}
-
-	n.PongCh <- pong.Nonce
-
-	return nil
-}
-
-func (no Node) handleTx(header *p2p.MessageHeader, conn io.ReadWriter) error {
-	var tx p2p.MsgTx
-
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&tx); err != nil {
-		return err
-	}
-
-	fmt.Printf("transaction: %+v\n", tx)
-
-	return nil
-}
-
-func (n Node) handleVerack(header *p2p.MessageHeader, conn io.ReadWriter) error {
-	return nil
-}
-
-func (no Node) handleInv(header *p2p.MessageHeader, conn io.ReadWriter) error {
-	var inv p2p.MsgInv
-
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&inv); err != nil {
-		return err
-	}
-
-	var getData p2p.MsgGetData
-	getData.Inventory = inv.Inventory
-	getData.Count = inv.Count
-
-	getDataMsg, err := p2p.NewMessage("getdata", no.Network, getData)
-	if err != nil {
-		return err
-	}
-
-	msg, err := binary.Marshal(getDataMsg)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(msg)
-	return err
-}
-
-func (no Node) disconnectPeer(peerID string) {
-	fmt.Printf("disconnecting peer %s\n", peerID)
-
-	peer := no.Peers[peerID]
-	if peer == nil {
-		return
-	}
-
-	peer.Connection.Close()
-}
-
-type peerPing struct {
-	nonce  uint64
-	peerID string
-}
+//func (n Node) disconnectPeer(peerID string) {
+//	fmt.Printf("disconnecting peer %s\n", peerID)
+//
+//	peer := n.Peers[peerID]
+//	if peer == nil {
+//		return
+//	}
+//
+//	peer.Connection.Close()
+//}
 
 //// Addr ...
 //type Addr struct {
