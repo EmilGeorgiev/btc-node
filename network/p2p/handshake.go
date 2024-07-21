@@ -96,6 +96,7 @@ func handleVersion(msgHeader MessageHeader, conn net.Conn) (Handshake, error) {
 		Version:    version.Version,
 	}
 
+	log.Println("receive msg version. The node support protocol version:", version.Version)
 	//for _, n := range Networks {
 	//	if n == msgHeader.Magic {
 	//

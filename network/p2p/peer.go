@@ -2,12 +2,12 @@ package p2p
 
 import (
 	"fmt"
-	"io"
+	"net"
 )
 
 type Peer struct {
 	Address    string
-	Connection io.ReadWriteCloser
+	Connection net.Conn
 	PongCh     chan uint64
 	Services   uint64
 	UserAgent  string

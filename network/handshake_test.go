@@ -59,7 +59,8 @@ func TestConnect(t *testing.T) {
 	}
 
 	fmt.Println("Running node")
-	if err = n.Run(p2p.Addr{IP: "46.10.215.188", Port: 8333}); err != nil {
+	//212.5.157.40:8333:
+	if err = n.Run(p2p.Addr{IP: "84.214.99.222", Port: 8333}); err != nil {
 		panic(fmt.Sprintf("failed during running the node: %s", err))
 	}
 }

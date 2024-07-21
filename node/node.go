@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"time"
 )
 
@@ -72,9 +73,12 @@ Loop:
 		fmt.Println("Read new message from connection")
 		n, err := conn.Read(tmp)
 		if err != nil {
+			log.Println("receive err:", err.Error())
 			if err != io.EOF {
-				return fmt.Errorf("faield to read from conenction: %s", err)
+				log.Printf("failed while reading from the connection with peer: %s. Error: %s\n", peerAddr.String(), err)
+				return nil
 			}
+
 			break Loop
 		}
 
@@ -173,7 +177,7 @@ func nonce() uint64 {
 //	return nil
 //}
 
-func (n Node) handlePing(header *p2p.MessageHeader, conn io.ReadWriter) error {
+func (n Node) handlePing(header *p2p.MessageHeader, conn net.Conn) error {
 	var ping p2p.MsgPing
 
 	lr := io.LimitReader(conn, int64(header.Length))
@@ -190,6 +194,7 @@ func (n Node) handlePing(header *p2p.MessageHeader, conn io.ReadWriter) error {
 		return err
 	}
 
+	log.Println("sending pong message to peer:", conn.RemoteAddr())
 	if _, err = conn.Write(msg); err != nil {
 		return err
 	}
