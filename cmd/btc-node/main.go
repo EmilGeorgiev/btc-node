@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "example_config.yaml", "path to the configuration file")
+	configPath := flag.String("config", "/home/emil/go/src/github.com/EmilGeorgiev/btc-node/cmd/btc-node/exampe_config.yaml", "path to the configuration file")
 	flag.Parse()
 
 	data, err := os.ReadFile(*configPath)

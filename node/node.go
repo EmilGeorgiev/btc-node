@@ -65,11 +65,18 @@ func (n Node) ConnectToPeers(peerAddrs []common.Addr) {
 }
 
 func (n Node) Sync() {}
-func (n Node) Stop() StopReports {
+func (n Node) Stop() {
 	close(n.stop)
 
-	stopReports := <-n.stopReports
-	return stopReports
+	run := true
+	for run {
+		n.m.Lock()
+		if len(n.Peers) == 0 {
+			run = false
+		}
+		n.m.Unlock()
+	}
+	log.Println("all goroutines are stopped")
 }
 
 type connErr struct {
