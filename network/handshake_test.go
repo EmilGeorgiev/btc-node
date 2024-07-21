@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/EmilGeorgiev/btc-node/node"
 	"testing"
 )
@@ -58,7 +59,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	fmt.Println("Running node")
-	if err = n.Run("79.124.7.253:8333"); err != nil {
+	if err = n.Run(p2p.Addr{IP: "46.10.215.188", Port: 8333}); err != nil {
 		panic(fmt.Sprintf("failed during running the node: %s", err))
 	}
 }

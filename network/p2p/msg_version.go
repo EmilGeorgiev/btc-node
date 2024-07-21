@@ -39,10 +39,5 @@ func NewVersionMsg(network, userAgent string, peerIP IPv4, peerPort uint16) (*Me
 		Relay:       true,
 	}
 
-	msg, err := NewMessage("version", network, payload)
-	if err != nil {
-		return nil, err
-	}
-
-	return msg, nil
+	return NewMessage("version", network, payload)
 }

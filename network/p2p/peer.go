@@ -3,11 +3,10 @@ package p2p
 import (
 	"fmt"
 	"io"
-	"net"
 )
 
 type Peer struct {
-	Address    net.Addr
+	Address    string
 	Connection io.ReadWriteCloser
 	PongCh     chan uint64
 	Services   uint64
@@ -17,7 +16,7 @@ type Peer struct {
 
 // ID returns peer ID.
 func (p Peer) ID() string {
-	return p.Address.String()
+	return p.Address
 }
 
 func (p Peer) String() string {

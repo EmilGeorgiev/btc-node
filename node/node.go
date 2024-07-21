@@ -2,16 +2,12 @@ package node
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"io"
-	"math"
+	"log"
 	"math/rand"
-	"net"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -19,6 +15,14 @@ const (
 	pingIntervalSec = 120
 	pingTimeoutSec  = 30
 )
+
+// 1. first conencto to the list of peers (hadnshake version/verack)
+// 2. Get from the database to which block we have information locally.
+// 3. when we have information what blocks we have locally we can send command/message "getblocks"
+//         to get blocks from the begining or from some point in the chain and continue syncing our local
+//         chain with other nodes' local chains of data.
+// 4. receive inv message -
+//
 
 type Node struct {
 	Network      string
@@ -47,66 +51,20 @@ func New(network, userAgent string) (*Node, error) {
 }
 
 // Run starts a node.
-func (no Node) Run(nodeAddr string) error {
-	peerAddr, err := ParseNodeAddr(nodeAddr)
+func (no Node) Run(peerAddr p2p.Addr) error {
+	handshake, err := p2p.CreateHandshake(peerAddr, no.Network, no.UserAgent)
 	if err != nil {
-		return fmt.Errorf("failed to parse node address: %s", err)
+		log.Println("Errr: ", err.Error())
+		return err
 	}
+	defer func() {
+		log.Println("Close the connection with peer: ", peerAddr.String())
+		delete(no.Peers, peerAddr.String())
+		handshake.Peer.Connection.Close()
+	}()
+	//go no.monitorPeers()
 
-	//version := p2p.MsgVersion{
-	//	Version:   p2p.Version,
-	//	Services:  1,
-	//	Timestamp: time.Now().UTC().Unix(),
-	//	AddrRecv: p2p.NetAddr{
-	//		Services: 1,
-	//		IP:       peerAddr.IP,
-	//		Port:     peerAddr.Port,
-	//	},
-	//	AddrFrom: p2p.NetAddr{
-	//		Services: 1,
-	//		IP:       *p2p.NewIPv4(127, 0, 0, 1),
-	//		Port:     8333,
-	//	},
-	//	Nonce:       nonce(),
-	//	UserAgent:   p2p.NewVarStr(no.UserAgent),
-	//	StartHeight: -1,
-	//	Relay:       true,
-	//}
-
-	//fmt.Printf("MsgVersion: %v\n", version)
-
-	version, err := p2p.NewVersionMsg(
-		no.Network,
-		no.UserAgent,
-		peerAddr.IP,
-		peerAddr.Port,
-	)
-
-	//msg, err := p2p.NewMessage("version", "mainnet", version)
-	if err != nil {
-		return fmt.Errorf("failed to create msgVersion: %s", err)
-	}
-
-	msgSerialized, err := binary.Marshal(version)
-	if err != nil {
-		return fmt.Errorf("failed to marshal MsgVersion: %s", err)
-	}
-
-	fmt.Println("Open a connection to: ", nodeAddr)
-	conn, err := net.Dial("tcp", nodeAddr)
-	if err != nil {
-		return fmt.Errorf("Failed to conenct to peer: %s ", err)
-	}
-	defer conn.Close()
-
-	fmt.Println("Write MsgVersion to conenction")
-	_, err = conn.Write(msgSerialized)
-	if err != nil {
-		return fmt.Errorf("Failed to write MsgVersion to conenction: %s ", err)
-	}
-
-	go no.monitorPeers()
-
+	conn := handshake.Peer.Connection
 	tmp := make([]byte, p2p.MsgHeaderLength)
 
 Loop:
@@ -120,58 +78,55 @@ Loop:
 			break Loop
 		}
 
-		fmt.Printf("received header: %x\n", tmp[:n])
+		log.Printf("received msg header: %x\n", tmp[:n])
 		var msgHeader p2p.MessageHeader
 		if err = binary.NewDecoder(bytes.NewReader(tmp[:n])).Decode(&msgHeader); err != nil {
-			fmt.Printf("invalid header: %+v\n", err)
-			continue
+			log.Printf("failed to decode message header from peer: %s, due an error: %s\n", peerAddr.String(), err)
+			return nil
 		}
 
 		if err = msgHeader.Validate(); err != nil {
-			fmt.Printf("Erro while validate message: %s\n", err.Error())
-			continue
+			log.Printf("receive invalid headet message from peer: %s. The headet is invalid becasue: %s\n", peerAddr.String(), err)
+			return nil
 		}
 
 		fmt.Printf("received message: %s\n", msgHeader.Command)
-
 		switch msgHeader.CommandString() {
 		case "version":
-			if err = no.handleVersion(&msgHeader, conn); err != nil {
-				fmt.Printf("failed to handle 'msgversion': %+v\n", err)
-				continue
-			}
+			log.Printf("receive unexpected message Version from peer: %s that violate protocol. Close the connection", peerAddr.String())
+			return nil
 		case "verack":
-			if err := no.handleVerack(&msgHeader, conn); err != nil {
-				fmt.Printf("failed to handle 'verack': %+v\n", err)
-				continue
-			}
+			log.Printf("receive unexpected message Verackn from peer: %s that violate protocol. Close the connection", peerAddr.String())
+			return nil
 		case "ping":
 			if err := no.handlePing(&msgHeader, conn); err != nil {
-				fmt.Printf("failed to handle 'ping': %+v\n", err)
-				continue
+				log.Printf("failed to handle 'ping': %+v\n", err)
+				return nil
 			}
 		case "pong":
 			if err := no.handlePong(&msgHeader, conn); err != nil {
 				fmt.Printf("failed to handle 'pong': %+v\n", err)
-				continue
+				return nil
 			}
 		case "inv":
 			if err = no.handleInv(&msgHeader, conn); err != nil {
 				fmt.Printf("failed to handle 'inv': %+v\n", err)
-				continue
+				return nil
 			}
 		case "tx":
 			if err = no.handleTx(&msgHeader, conn); err != nil {
 				fmt.Printf("failed to handle 'tx': %+v\n", err)
-				continue
+				return nil
 			}
 		default:
+			log.Println("missing handler for message of type: ", msgHeader.CommandString())
 			buf := make([]byte, msgHeader.Length)
 			nn, err := conn.Read(buf)
 			if err != nil {
-				fmt.Printf("failed to read payalod: %s\n", err)
+				log.Printf("failed to read payalod. Err: %s\n", err)
+				return nil
 			}
-			fmt.Printf("receive payalod: %x\n", buf[:nn])
+			fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), buf[:nn])
 		}
 	}
 
@@ -182,41 +137,41 @@ func nonce() uint64 {
 	return rand.Uint64()
 }
 
-func (n Node) handleVersion(header *p2p.MessageHeader, conn net.Conn) error {
-	var version p2p.MsgVersion
-
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&version); err != nil {
-		return err
-	}
-
-	peer := p2p.Peer{
-		Address:    conn.RemoteAddr(),
-		Connection: conn,
-		PongCh:     make(chan uint64),
-		Services:   version.Services,
-		UserAgent:  version.UserAgent.String,
-		Version:    version.Version,
-	}
-	n.Peers[peer.ID()] = &peer
-	go n.monitorPeers()
-	verack, err := p2p.NewVerackMsg(n.Network)
-	if err != nil {
-		return err
-	}
-
-	msg, err := binary.Marshal(verack)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Send verack message to peer")
-	if _, err := conn.Write(msg); err != nil {
-		return err
-	}
-
-	return nil
-}
+//func (n Node) handleVersion(header *p2p.MessageHeader, conn net.Conn) error {
+//	var version p2p.MsgVersion
+//
+//	lr := io.LimitReader(conn, int64(header.Length))
+//	if err := binary.NewDecoder(lr).Decode(&version); err != nil {
+//		return err
+//	}
+//
+//	peer := p2p.Peer{
+//		Address:    conn.RemoteAddr(),
+//		Connection: conn,
+//		PongCh:     make(chan uint64),
+//		Services:   version.Services,
+//		UserAgent:  version.UserAgent.String,
+//		Version:    version.Version,
+//	}
+//	n.Peers[peer.ID()] = &peer
+//	go n.monitorPeers()
+//	verack, err := p2p.NewVerackMsg(n.Network)
+//	if err != nil {
+//		return err
+//	}
+//
+//	msg, err := binary.Marshal(verack)
+//	if err != nil {
+//		return err
+//	}
+//
+//	fmt.Printf("Send verack message to peer")
+//	if _, err := conn.Write(msg); err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
 func (n Node) handlePing(header *p2p.MessageHeader, conn io.ReadWriter) error {
 	var ping p2p.MsgPing
@@ -383,39 +338,39 @@ type peerPing struct {
 	peerID string
 }
 
-// Addr ...
-type Addr struct {
-	IP   p2p.IPv4
-	Port uint16
-}
-
-// ParseNodeAddr ...
-func ParseNodeAddr(nodeAddr string) (*Addr, error) {
-	parts := strings.Split(nodeAddr, ":")
-	if len(parts) != 2 {
-		return nil, errors.New("malformed node address")
-	}
-
-	hostnamePart := parts[0]
-	portPart := parts[1]
-	if hostnamePart == "" || portPart == "" {
-		return nil, errors.New("malformed node address")
-	}
-
-	port, err := strconv.Atoi(portPart)
-	if err != nil {
-		return nil, errors.New("malformed node address")
-	}
-
-	if port < 0 || port > math.MaxUint16 {
-		return nil, errors.New("malformed node address")
-	}
-
-	var addr Addr
-	ip := net.ParseIP(hostnamePart)
-	copy(addr.IP[:], []byte(ip.To4()))
-
-	addr.Port = uint16(port)
-
-	return &addr, nil
-}
+//// Addr ...
+//type Addr struct {
+//	IP   p2p.IPv4
+//	Port uint16
+//}
+//
+//// ParseNodeAddr ...
+//func ParseNodeAddr(nodeAddr string) (*Addr, error) {
+//	parts := strings.Split(nodeAddr, ":")
+//	if len(parts) != 2 {
+//		return nil, errors.New("malformed node address")
+//	}
+//
+//	hostnamePart := parts[0]
+//	portPart := parts[1]
+//	if hostnamePart == "" || portPart == "" {
+//		return nil, errors.New("malformed node address")
+//	}
+//
+//	port, err := strconv.Atoi(portPart)
+//	if err != nil {
+//		return nil, errors.New("malformed node address")
+//	}
+//
+//	if port < 0 || port > math.MaxUint16 {
+//		return nil, errors.New("malformed node address")
+//	}
+//
+//	var addr Addr
+//	ip := net.ParseIP(hostnamePart)
+//	copy(addr.IP[:], []byte(ip.To4()))
+//
+//	addr.Port = uint16(port)
+//
+//	return &addr, nil
+//}

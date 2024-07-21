@@ -69,7 +69,8 @@ func (mh MessageHeader) HasValidMagic() bool {
 }
 
 func (mh MessageHeader) CommandString() string {
-	return strings.Trim(string(mh.Command[:]), string(0))
+	return strings.TrimRight(string(mh.Command[:]), "\x00")
+	//return strings.Trim(string(mh.Command[:]), string(0))
 }
 
 // MessagePayload ...
@@ -80,17 +81,17 @@ type MessagePayload interface {
 func NewMessage(cmd, network string, payload interface{}) (*Message, error) {
 	serializedPayload, err := binary.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new message of type %s when parse its paylaod. Error: %s", cmd, err.Error())
 	}
 
 	command, ok := commands[cmd]
 	if !ok {
-		return nil, fmt.Errorf("unsupported command %s", cmd)
+		return nil, fmt.Errorf("failed to create a new message because the command is unsuported %s", cmd)
 	}
 
 	magic, ok := Networks[network]
 	if !ok {
-		return nil, fmt.Errorf("unsupported network %s", network)
+		return nil, fmt.Errorf("faile creating message if type %s becasue network: %s is not supported", cmd, network)
 	}
 
 	msg := Message{
@@ -102,8 +103,6 @@ func NewMessage(cmd, network string, payload interface{}) (*Message, error) {
 		},
 		Payload: serializedPayload,
 	}
-
-	fmt.Printf("Paylaod msg comand %s: %v\n", command, serializedPayload)
 
 	return &msg, nil
 }
