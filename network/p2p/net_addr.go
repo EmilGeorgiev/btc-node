@@ -3,6 +3,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
 )
 
@@ -11,7 +12,7 @@ type NetAddr struct {
 	//Time     uint32
 	Services uint64
 	IP       IPv4
-	Port     uint16
+	Port     binary.PortNumber
 }
 
 // NewIPv4 ...

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/common"
+	errors2 "github.com/EmilGeorgiev/btc-node/errors"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"io"
@@ -13,6 +14,13 @@ import (
 	"sync"
 	"time"
 )
+
+var genesisBlockHash = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
+	0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
+	0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
+	0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
+}
 
 const (
 	pingIntervalSec = 120
@@ -32,6 +40,7 @@ type Node struct {
 	UserAgent       string
 	Peers           map[string]*p2p.Peer
 	stop            chan struct{}
+	outgoingMsgs    chan p2p.Message
 	readConnTimeout time.Duration
 	errors          chan connErr
 	stopReports     chan StopReports
@@ -54,17 +63,31 @@ func New(network, userAgent string, readConnTimeout time.Duration) (*Node, error
 		stop:            make(chan struct{}),
 		stopReports:     make(chan StopReports),
 		errors:          make(chan connErr, 100),
+		outgoingMsgs:    make(chan p2p.Message, 100),
 	}, nil
 }
 
 func (n Node) ConnectToPeers(peerAddrs []common.Addr) {
 	// initialize outgoing connections to the list of peers
+	n.monitoringConnections()
 	for _, peerAddr := range peerAddrs {
 		n.initilizeOutgoingConnection(peerAddr)
 	}
 }
 
-func (n Node) Sync() {}
+func (n Node) Sync() {
+
+	msg, err := p2p.NewMsgGetHeader(n.Network, 1, genesisBlockHash, [32]byte{0})
+	if err != nil {
+		n.errors <- connErr{
+			err: errors2.NewE("failed to crate getHeaders message", err),
+		}
+	}
+
+	fmt.Println("SEND MSH HEADER to peer")
+	n.outgoingMsgs <- *msg
+}
+
 func (n Node) Stop() {
 	close(n.stop)
 
@@ -90,7 +113,7 @@ func (n Node) monitoringConnections() {
 			select {
 			case <-n.stop:
 				return
-			case err := <-n.errors:
+			case f := <-n.errors:
 				// TODO: here can be implemented a logic for handling errors that rise during communication between peers.
 				// For example we can implement a logic like:
 				//      - reconnect to the peer depending of the error.
@@ -100,7 +123,13 @@ func (n Node) monitoringConnections() {
 				//      - or something else
 				//
 				// For now we just log the error.
-				log.Println(err.err.Error())
+				var e errors2.E
+				if errors.As(f.err, &e) {
+					log.Println("Monitor print errE:", f.err.Error())
+				} else {
+					log.Println("Monitor print error: ", f)
+				}
+
 			}
 		}
 	}()
@@ -120,19 +149,66 @@ func (n Node) addPeer(peer p2p.Peer) {
 }
 
 func (n Node) initilizeOutgoingConnection(peerAddr common.Addr) {
-	handshake, err := p2p.CreateHandshake(peerAddr, n.Network, n.UserAgent)
+	handshake, err := p2p.CreateOutgoingHandshake(peerAddr, n.Network, n.UserAgent)
 	if err != nil {
+		fmt.Println("report error")
 		n.errors <- connErr{
 			peer: p2p.Peer{Address: peerAddr.String()},
 			err:  err,
 		}
+		fmt.Println("after report error")
+		return
 	}
-
+	fmt.Println("initialize connection with peer")
 	n.addPeer(handshake.Peer)
-	n.manageMessagesWithPeer(handshake.Peer)
+	n.handleMessagesFromPeer(handshake.Peer)
+	n.sendMessagesToPeer(handshake.Peer)
 }
 
-func (n Node) manageMessagesWithPeer(peer p2p.Peer) {
+func (n Node) sendMessagesToPeer(peer p2p.Peer) {
+
+	conn := peer.Connection
+	go func() {
+		defer func() {
+			log.Println("Close the connection with peer: ", peer.Address)
+			n.deletePeer(peer)
+			peer.Connection.Close()
+		}()
+
+		for {
+			select {
+			case <-n.stop:
+				log.Println("Stop goroutine that send messages from peer: ", peer.Address)
+				return
+			case msg := <-n.outgoingMsgs:
+				rawMsg, err := binary.Marshal(msg)
+				if err != nil {
+					m := fmt.Sprintf("failed to marshal outgoing message: %s", msg.MessageHeader.CommandString())
+					n.errors <- connErr{
+						peer: peer,
+						err:  errors2.NewE(m, err, true),
+					}
+					return
+				}
+				fmt.Printf("send message: %s, to peer: %s\n", msg.MessageHeader.CommandString(), peer.Address)
+				conn.SetWriteDeadline(time.Now().Add(n.readConnTimeout))
+				_, err = conn.Write(rawMsg)
+				if err != nil {
+					fmt.Println("faield to send msg: ", msg.MessageHeader.CommandString())
+					m := fmt.Sprintf("receive an error while writing msg: %s to peer: %s.", msg.MessageHeader.CommandString(), peer.Address)
+					n.errors <- connErr{
+						peer: peer,
+						err:  errors2.NewE(m, err, true),
+					}
+					return
+				}
+				fmt.Printf("send msg: %s successfully\n", msg.MessageHeader.CommandString())
+			}
+		}
+	}()
+}
+
+func (n Node) handleMessagesFromPeer(peer p2p.Peer) {
 	go func() {
 		defer func() {
 			log.Println("Close the connection with peer: ", peer.Address)
@@ -145,7 +221,7 @@ func (n Node) manageMessagesWithPeer(peer p2p.Peer) {
 		for {
 			select {
 			case <-n.stop:
-				log.Println("Stop gracefully the goroutine that manage the connection with peer: ", peer.Address)
+				log.Println("Stop goroutine that handle messages from peer: ", peer.Address)
 				return
 			default:
 				conn.SetReadDeadline(time.Now().Add(n.readConnTimeout))
@@ -153,11 +229,12 @@ func (n Node) manageMessagesWithPeer(peer p2p.Peer) {
 				if err != nil {
 					var netErr net.Error
 					if errors.As(err, &netErr) && netErr.Timeout() {
+						log.Println("timeout read")
 						continue
 					}
 					n.errors <- connErr{
 						peer: peer,
-						err:  fmt.Errorf("receive an error while reading from connection with peer: %s. Err: %s", peer.Address, err),
+						err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", peer.Address), err, true),
 					}
 					return
 				}
@@ -172,27 +249,27 @@ func (n Node) manageMessagesWithPeer(peer p2p.Peer) {
 
 func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 	addr := conn.RemoteAddr().String()
-	log.Printf("received msg header: %x\n", headerRaw)
+	log.Printf("received msg with header: %x\n", headerRaw)
 	var msgHeader p2p.MessageHeader
 	if err := binary.NewDecoder(bytes.NewReader(headerRaw)).Decode(&msgHeader); err != nil {
-		log.Printf("failed to decode message header from peer: %s, due an error: %s\n", addr, err)
-		return err
+		return errors2.NewE(fmt.Sprintf("failed to decode message header from peer: %s.", addr), err)
 	}
 
+	fmt.Println("Message is of type: ", msgHeader.CommandString())
+
 	if err := msgHeader.Validate(); err != nil {
-		log.Printf("receive invalid headet message from peer: %s. The header is invalid becasue: %s\n", addr, err)
-		return err
+		return errors2.NewE(fmt.Sprintf("receive invalid headet message from peer: %s.", addr), err)
 	}
 
 	fmt.Printf("received message: %s\n", msgHeader.Command)
 	switch msgHeader.CommandString() {
 	case "version":
-		return fmt.Errorf("receive unexpected message Version from peer: %s that violate protocol. Close the connection", addr)
+		return errors2.NewE(fmt.Sprintf("receive unexpected msg Version from peer: %s that violate protocol.", addr))
 	case "verack":
-		return fmt.Errorf("receive unexpected message Verackn from peer: %s that violate protocol. Close the connection", addr)
+		return errors2.NewE(fmt.Sprintf("receive unexpected msg Verackn from peer: %s that violate protocol.", addr))
 	case "ping":
 		if err := n.handlePing(&msgHeader, conn); err != nil {
-			return fmt.Errorf("failed to handle 'ping': %v\n", err)
+			return err
 		}
 	//case "pong":
 	//	if err := n.handlePong(&msgHeader, conn); err != nil {
@@ -207,12 +284,16 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		if err := n.handleTx(&msgHeader, conn); err != nil {
 			return fmt.Errorf("failed to handle 'tx': %+v\n", err)
 		}
+	case "headers":
+		if err := n.handleHeaders(&msgHeader, conn); err != nil {
+			return fmt.Errorf("failed to handle 'headers': %+v\n", err)
+		}
 	default:
 		log.Println("missing handler for message of type: ", msgHeader.CommandString())
 		buf := make([]byte, msgHeader.Length)
 		nn, err := conn.Read(buf)
 		if err != nil {
-			return fmt.Errorf("failed to read payalod of msg for which we don't have handler. Err: %s\n", err)
+			return errors2.NewE(fmt.Sprintf("failed to read payalod of msg %s through connection.", msgHeader.CommandString()), err, true)
 		}
 		fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), buf[:nn])
 	}
@@ -224,7 +305,7 @@ func (n Node) handlePing(header *p2p.MessageHeader, conn net.Conn) error {
 
 	lr := io.LimitReader(conn, int64(header.Length))
 	if err := binary.NewDecoder(lr).Decode(&ping); err != nil {
-		return err
+		return errors2.NewE(fmt.Sprintf("failed to decode msg Ping from peer: %s", conn.RemoteAddr().String()), err)
 	}
 
 	pong, err := p2p.NewPongMsg(n.Network, ping.Nonce)
@@ -234,12 +315,16 @@ func (n Node) handlePing(header *p2p.MessageHeader, conn net.Conn) error {
 
 	msg, err := binary.Marshal(pong)
 	if err != nil {
-		return err
+		return errors2.NewE(fmt.Sprintf("failed to marshal pong msg for peer: %s", conn.RemoteAddr().String()), err)
 	}
 
 	log.Println("sending pong message to peer:", conn.RemoteAddr())
-	_, err = conn.Write(msg)
-	return err
+	if _, err = conn.Write(msg); err != nil {
+		log.Println("failed to send pong")
+		return errors2.NewE(fmt.Sprintf("failed sending pong msg through conn to peer: %s", conn.RemoteAddr().String()), err, true)
+	}
+
+	return nil
 }
 
 //func (n Node) handlePong(header *p2p.MessageHeader, conn io.ReadWriter) error {
@@ -289,6 +374,23 @@ func (n Node) handleInv(header *p2p.MessageHeader, conn io.ReadWriter) error {
 
 	_, err = conn.Write(msg)
 	return err
+}
+
+func (n Node) handleHeaders(header *p2p.MessageHeader, conn io.ReadWriter) error {
+	fmt.Println("HANDLE MSG HEADERS")
+	var h p2p.MsgHeaders
+
+	lr := io.LimitReader(conn, int64(header.Length))
+	if err := binary.NewDecoder(lr).Decode(&h); err != nil {
+		fmt.Println("FAILED DECODE MSG HEADERS: ", err.Error())
+		return err
+	}
+
+	log.Println("handle msg Headers with block headers:")
+	for i, bh := range h.BlockHeaders {
+		log.Printf("Header: %d is: %+v\n", i, bh)
+	}
+	return nil
 }
 
 type StopReports struct {

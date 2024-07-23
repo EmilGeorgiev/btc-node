@@ -13,6 +13,8 @@ const (
 	magicAndChecksumLength = 4
 )
 
+type PortNumber uint16
+
 // Marshaler is used when you need custom serialization algorithms. Most of the types has
 // standard serialization but some of them need custom one like, than they should implement this method
 // which will be called in the Marshal methodnvh
@@ -33,6 +35,10 @@ func Marshal(v interface{}) ([]byte, error) {
 			return nil, err
 		}
 	case uint16:
+		if err := binary.Write(buf, binary.LittleEndian, val); err != nil {
+			return nil, err
+		}
+	case PortNumber:
 		if err := binary.Write(buf, binary.BigEndian, val); err != nil {
 			return nil, err
 		}

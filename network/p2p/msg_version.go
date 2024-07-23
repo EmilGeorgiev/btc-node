@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"math/rand"
 	"time"
 )
@@ -26,7 +27,7 @@ func NewVersionMsg(network, userAgent string, peerIP IPv4, peerPort uint16) (*Me
 		AddrRecv: NetAddr{
 			Services: 1,
 			IP:       peerIP,
-			Port:     peerPort,
+			Port:     binary.PortNumber(peerPort),
 		},
 		AddrFrom: NetAddr{
 			Services: 1,

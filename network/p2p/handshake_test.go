@@ -2,6 +2,7 @@ package p2p_test
 
 import (
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/common"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/stretchr/testify/require"
@@ -16,14 +17,14 @@ func TestCreateHandshake(t *testing.T) {
 	pongMsg, _ := p2p.NewPongMsg("mainnet", 11111)
 	tests := []struct {
 		name      string
-		peerAddr  p2p.Addr
+		peerAddr  common.Addr
 		peerNode  dummyNode
 		expected  p2p.Handshake
 		expectErr bool
 	}{
 		{
 			name:     "successful handshake",
-			peerAddr: p2p.Addr{IP: "127.0.0.1", Port: 3333},
+			peerAddr: common.Addr{IP: "127.0.0.1", Port: 3333},
 			peerNode: dummyNode{
 				msgs:     []p2p.Message{*validVersionMsg, *validVerackMsg},
 				listenOn: 3333,
@@ -38,7 +39,7 @@ func TestCreateHandshake(t *testing.T) {
 		},
 		{
 			name:     "remote peer send message version more than once",
-			peerAddr: p2p.Addr{IP: "127.0.0.1", Port: 4444},
+			peerAddr: common.Addr{IP: "127.0.0.1", Port: 4444},
 			peerNode: dummyNode{
 				msgs:     []p2p.Message{*validVersionMsg, *validVersionMsg},
 				listenOn: 4444,
@@ -48,7 +49,7 @@ func TestCreateHandshake(t *testing.T) {
 		},
 		{
 			name:     "remote peer send first verack message",
-			peerAddr: p2p.Addr{IP: "127.0.0.1", Port: 5555},
+			peerAddr: common.Addr{IP: "127.0.0.1", Port: 5555},
 			peerNode: dummyNode{
 				msgs:     []p2p.Message{*validVersionMsg, *validVersionMsg},
 				listenOn: 5555,
@@ -58,7 +59,7 @@ func TestCreateHandshake(t *testing.T) {
 		},
 		{
 			name:     "remote peer send first unexpected msg pong for handshake",
-			peerAddr: p2p.Addr{IP: "127.0.0.1", Port: 5555},
+			peerAddr: common.Addr{IP: "127.0.0.1", Port: 5555},
 			peerNode: dummyNode{
 				msgs:     []p2p.Message{*pongMsg},
 				listenOn: 5555,
@@ -74,7 +75,7 @@ func TestCreateHandshake(t *testing.T) {
 			err := tt.peerNode.start(tes)
 			require.NoError(tes, err)
 
-			actual, err := p2p.CreateHandshake(tt.peerAddr, "mainnet", "test-agent")
+			actual, err := p2p.CreateOutgoingHandshake(tt.peerAddr, "mainnet", "test-agent")
 
 			tt.expected.Peer.Connection = actual.Peer.Connection
 			require.Equal(tes, tt.expected, actual)

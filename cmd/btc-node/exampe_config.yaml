@@ -1,6 +1,8 @@
 peeraddrs:
   - ip: "94.156.128.153"
     port: 8333
+#  - ip: "185.148.147.47"
+#    port: 8333
 network: "mainnet"
 useragent: "btc-node"
 readtimeout: "30s"

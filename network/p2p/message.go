@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/errors"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"strings"
 )
@@ -81,17 +82,20 @@ type MessagePayload interface {
 func NewMessage(cmd, network string, payload interface{}) (*Message, error) {
 	serializedPayload, err := binary.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new message of type %s when parse its paylaod. Error: %s", cmd, err.Error())
+		msg := fmt.Sprintf("failed to create new message of type %s when parse its paylaod.", cmd)
+		return nil, errors.NewE(msg, err)
 	}
 
 	command, ok := commands[cmd]
 	if !ok {
-		return nil, fmt.Errorf("failed to create a new message because the command is unsuported %s", cmd)
+		msg := fmt.Sprintf("failed to create a new message because the command is unsuported %s", cmd)
+		return nil, errors.NewE(msg, err)
 	}
 
 	magic, ok := Networks[network]
 	if !ok {
-		return nil, fmt.Errorf("faile creating message if type %s becasue network: %s is not supported", cmd, network)
+		msg := fmt.Sprintf("faile creating message if type %s becasue network: %s is not supported", cmd, network)
+		return nil, errors.NewE(msg, err)
 	}
 
 	msg := Message{

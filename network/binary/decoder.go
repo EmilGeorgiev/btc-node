@@ -48,6 +48,10 @@ func (d Decoder) Decode(v interface{}) error {
 			return err
 		}
 
+	case *PortNumber:
+		if err := d.decodePortNumber(val); err != nil {
+			return err
+		}
 	case *uint32:
 		if err := d.decodeUint32(val); err != nil {
 			return err
@@ -153,6 +157,16 @@ func (d Decoder) decodeUint8(out *uint8) error {
 }
 
 func (d Decoder) decodeUint16(out *uint16) error {
+	lr := io.LimitReader(d.r, 2)
+
+	if err := binary.Read(lr, binary.LittleEndian, out); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d Decoder) decodePortNumber(out *PortNumber) error {
 	lr := io.LimitReader(d.r, 2)
 
 	if err := binary.Read(lr, binary.BigEndian, out); err != nil {
