@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
 )
@@ -41,22 +42,22 @@ func (v *VarInt) UnmarshalBinary(r io.Reader) error {
 	return nil
 }
 
-func (v *VarInt) MarshalBinary() ([]byte, error) {
+func (v VarInt) MarshalBinary() ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 
 	var i interface{}
 	switch true {
-	case *v < 0xFD:
-		i = uint8(*v)
-	case *v <= 0xFFFF:
+	case v < 0xFD:
+		i = uint8(v)
+	case v <= 0xFFFF:
 		buf.Write([]byte{0xFD})
-		i = uint16(*v)
-	case *v <= 0xFFFFFFFF:
+		i = uint16(v)
+	case v <= 0xFFFFFFFF:
 		buf.Write([]byte{0xFE})
-		i = uint32(*v)
+		i = uint32(v)
 	default:
 		buf.Write([]byte{0xFF})
-		i = uint64(*v)
+		i = uint64(v)
 	}
 	b, err := binary.Marshal(i)
 	if err != nil {
@@ -83,6 +84,9 @@ func (h *MsgHeaders) UnmarshalBinary(r io.Reader) error {
 
 	h.BlockHeaders = make([]BlockHeader, h.Count)
 	for i := VarInt(0); i < h.Count; i++ {
+		if i == VarInt(1840) {
+			fmt.Println()
+		}
 		var bh BlockHeader
 		if err := d.Decode(&bh); err != nil {
 			return err
@@ -112,7 +116,7 @@ type BlockHeader struct {
 	Nonce uint32
 
 	// Number of transaction entries, this value is always 0
-	TxnCount uint64
+	TxnCount VarInt
 }
 
 // 1. Send getdata Message: Request full blocks based on the headers.

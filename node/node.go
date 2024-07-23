@@ -84,7 +84,7 @@ func (n Node) Sync() {
 		}
 	}
 
-	fmt.Println("SEND MSH HEADER to peer")
+	fmt.Println("SEND MSH GETHEADER to peer")
 	n.outgoingMsgs <- *msg
 }
 
@@ -261,6 +261,38 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		return errors2.NewE(fmt.Sprintf("receive invalid headet message from peer: %s.", addr), err)
 	}
 
+	/// read the hole payload
+	payloadLength := int(msgHeader.Length)
+	payload := make([]byte, 0, payloadLength)
+	tmp := 1024
+	if tmp > payloadLength {
+		tmp = payloadLength
+	}
+	tempBuffer := make([]byte, tmp) // Temporary buffer for reading in chunks
+
+	lr := io.LimitReader(conn, int64(payloadLength))
+
+	for len(payload) < payloadLength {
+		num, err := lr.Read(tempBuffer)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println("Error reading the payload:", err)
+			return err
+		}
+		payload = append(payload, tempBuffer[:num]...)
+		//fmt.Printf("Read %d bytes, total %d/%d\n", n, len(payload), payloadLength)
+	}
+	fmt.Println("FINISH reading thr PAYLOAD", len(payload))
+	if len(payload) != payloadLength {
+		fmt.Printf("Expected to read %d bytes, but only read %d\n", payloadLength, len(payload))
+		return fmt.Errorf("Expected to read %d bytes, but only read %d\n", payloadLength, len(payload))
+	}
+	/////
+
+	buf := bytes.NewBuffer(payload)
+	//lr = io.LimitReader(buf, int64(payloadLength))
 	fmt.Printf("received message: %s\n", msgHeader.Command)
 	switch msgHeader.CommandString() {
 	case "version":
@@ -268,7 +300,12 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 	case "verack":
 		return errors2.NewE(fmt.Sprintf("receive unexpected msg Verackn from peer: %s that violate protocol.", addr))
 	case "ping":
-		if err := n.handlePing(&msgHeader, conn); err != nil {
+		var ping p2p.MsgPing
+
+		if err := binary.NewDecoder(buf).Decode(&ping); err != nil {
+			return errors2.NewE(fmt.Sprintf("failed to decode msg Ping from peer: %s, Paylaod: %s", conn.RemoteAddr().String()), err)
+		}
+		if err := n.handlePing(&msgHeader, ping); err != nil {
 			return err
 		}
 	//case "pong":
@@ -276,53 +313,40 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 	//		fmt.Printf("failed to handle 'pong': %+v\n", err)
 	//		return nil
 	//	}
-	case "inv":
-		if err := n.handleInv(&msgHeader, conn); err != nil {
-			return fmt.Errorf("failed to handle 'inv': %+v\n", err)
-		}
-	case "tx":
-		if err := n.handleTx(&msgHeader, conn); err != nil {
-			return fmt.Errorf("failed to handle 'tx': %+v\n", err)
-		}
+	//case "inv":
+	//	if err := n.handleInv(&msgHeader, payload); err != nil {
+	//		return fmt.Errorf("failed to handle 'inv': %+v\n", err)
+	//	}
+	//case "tx":
+	//	if err := n.handleTx(&msgHeader, payload); err != nil {
+	//		return fmt.Errorf("failed to handle 'tx': %+v\n", err)
+	//	}
 	case "headers":
-		if err := n.handleHeaders(&msgHeader, conn); err != nil {
+		var h p2p.MsgHeaders
+		if err := binary.NewDecoder(buf).Decode(&h); err != nil {
+			fmt.Println("FAILED DECODE MSG HEADERS: ", err.Error())
+			fmt.Printf("PPPPPPPPPPPayloadIS: %x\n", payload)
+			return err
+		}
+		if err := n.handleHeaders(&msgHeader, h); err != nil {
 			return fmt.Errorf("failed to handle 'headers': %+v\n", err)
 		}
 	default:
 		log.Println("missing handler for message of type: ", msgHeader.CommandString())
-		buf := make([]byte, msgHeader.Length)
-		nn, err := conn.Read(buf)
-		if err != nil {
-			return errors2.NewE(fmt.Sprintf("failed to read payalod of msg %s through connection.", msgHeader.CommandString()), err, true)
-		}
-		fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), buf[:nn])
+		fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), payload)
 	}
 	return nil
 }
 
-func (n Node) handlePing(header *p2p.MessageHeader, conn net.Conn) error {
-	var ping p2p.MsgPing
+func (n Node) handlePing(header *p2p.MessageHeader, ping p2p.MsgPing) error {
+	go func() {
+		pong, err := p2p.NewPongMsg(n.Network, ping.Nonce)
+		if err != nil {
+			fmt.Println("failed to create new pong msg")
+		}
 
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&ping); err != nil {
-		return errors2.NewE(fmt.Sprintf("failed to decode msg Ping from peer: %s", conn.RemoteAddr().String()), err)
-	}
-
-	pong, err := p2p.NewPongMsg(n.Network, ping.Nonce)
-	if err != nil {
-		return err
-	}
-
-	msg, err := binary.Marshal(pong)
-	if err != nil {
-		return errors2.NewE(fmt.Sprintf("failed to marshal pong msg for peer: %s", conn.RemoteAddr().String()), err)
-	}
-
-	log.Println("sending pong message to peer:", conn.RemoteAddr())
-	if _, err = conn.Write(msg); err != nil {
-		log.Println("failed to send pong")
-		return errors2.NewE(fmt.Sprintf("failed sending pong msg through conn to peer: %s", conn.RemoteAddr().String()), err, true)
-	}
+		n.outgoingMsgs <- *pong
+	}()
 
 	return nil
 }
@@ -376,18 +400,11 @@ func (n Node) handleInv(header *p2p.MessageHeader, conn io.ReadWriter) error {
 	return err
 }
 
-func (n Node) handleHeaders(header *p2p.MessageHeader, conn io.ReadWriter) error {
+func (n Node) handleHeaders(header *p2p.MessageHeader, headers p2p.MsgHeaders) error {
 	fmt.Println("HANDLE MSG HEADERS")
-	var h p2p.MsgHeaders
-
-	lr := io.LimitReader(conn, int64(header.Length))
-	if err := binary.NewDecoder(lr).Decode(&h); err != nil {
-		fmt.Println("FAILED DECODE MSG HEADERS: ", err.Error())
-		return err
-	}
 
 	log.Println("handle msg Headers with block headers:")
-	for i, bh := range h.BlockHeaders {
+	for i, bh := range headers.BlockHeaders {
 		log.Printf("Header: %d is: %+v\n", i, bh)
 	}
 	return nil
