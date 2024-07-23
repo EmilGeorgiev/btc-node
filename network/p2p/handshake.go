@@ -11,7 +11,7 @@ import (
 	"net"
 )
 
-const minimalSupportedVersion = 70015
+const minimalSupportedVersion = 70016
 
 func CreateOutgoingHandshake(peerAddr common.Addr, network, userAgent string) (Handshake, error) {
 	log.Println("Initialize handshake with peer: ", peerAddr.String())
@@ -33,6 +33,7 @@ func CreateOutgoingHandshake(peerAddr common.Addr, network, userAgent string) (H
 
 	msgHeader := make([]byte, MsgHeaderLength)
 	versionMsgIsReceived := false
+	wtxidrelayIsReceived := false
 	var handshake Handshake
 	for {
 		n, err := conn.Read(msgHeader)
@@ -57,26 +58,27 @@ func CreateOutgoingHandshake(peerAddr common.Addr, network, userAgent string) (H
 		case "version":
 			log.Println("receive msg version from peer: ", peerAddr.String())
 			if versionMsgIsReceived {
-				m := fmt.Sprintf("message version is received twice during the handhsake with peer: %s which violate protocol", peerAddr.String())
-				return Handshake{}, errors.NewE(m)
+				log.Printf("message version is received more than once during the handhsake with peer: %s . The message will be ignored\n", peerAddr.String())
+				continue
 			}
 			versionMsgIsReceived = true
 			handshake, err = handleVersion(header, conn)
 			if err != nil {
 				return Handshake{}, err
 			}
+
+		case "wtxidrelay":
+			wtxidrelayIsReceived = true
+			log.Println("wtxidrelay is received")
 		case "verack":
 			log.Println("receive msg verack")
-			if versionMsgIsReceived {
-				return handshake, nil
+			if !wtxidrelayIsReceived {
+				log.Println("received verack before wtxidrelay. verack will be discarded")
+				continue
 			}
-			log.Println("verack is received before msg version")
-			m := fmt.Errorf("unexpected message of type verack is received before msg  version during the handshake with peer: %s", peerAddr.String())
-			return Handshake{}, errors.NewE(m)
+			return handshake, nil
 		default:
-			log.Println("receive unexpected message:", header.CommandString())
-			m := fmt.Errorf("unexpected message of type %s is received during the handshake with peer: %s", header.CommandString(), peerAddr.String())
-			return Handshake{}, errors.NewE(m)
+			log.Printf("receive unexpected message: %s. it will be ignored\n", header.CommandString())
 		}
 	}
 }
@@ -104,12 +106,29 @@ func handleVersion(msgHeader MessageHeader, conn net.Conn) (Handshake, error) {
 				peer.Address, version.Version, minimalSupportedVersion))
 	}
 
+	// SEND wtxidrelay
+	wtxidrelay, err := NewMessage("wtxidrelay", "mainnet", []byte{})
+	if err != nil {
+		fmt.Println("can not initilize wtxidrelay message")
+		return Handshake{}, err
+	}
+	msg, err := binary.Marshal(wtxidrelay)
+	if err != nil {
+		return Handshake{}, errors.NewE(fmt.Sprintf("failed to marshal verack msg for peer %s", peer.Address), err)
+	}
+	fmt.Printf("Send wtxidrelay message to peer")
+	if _, err := conn.Write(msg); err != nil {
+		return Handshake{}, errors.NewE(
+			fmt.Sprintf("failed to send verack message through conn to peer: %s", peer.Address), err, true)
+	}
+
+	// SEND verack
 	verack, err := NewVerackMsg("mainnet")
 	if err != nil {
 		return Handshake{}, err
 	}
 
-	msg, err := binary.Marshal(verack)
+	msg, err = binary.Marshal(verack)
 	if err != nil {
 		return Handshake{}, errors.NewE(fmt.Sprintf("failed to marshal verack msg for peer %s", peer.Address), err)
 	}

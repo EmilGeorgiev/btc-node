@@ -3,15 +3,23 @@ package p2p
 import "fmt"
 
 const (
-	cmdPing        = "ping"
-	cmdPong        = "pong"
+	cmdPkgtxns      = "pkgtxns"
+	cmdGetpkgtxns   = "getpkgtxns"
+	cmdAncpkginfo   = "ancpkginfo"
+	cmdSendpackages = "sendpackages"
+	cmdPing         = "ping"
+	cmdPong         = "pong"
+
+	CmdAddrv2      = "addrv2"
+	cmdSendaddrv2  = "sendaddrv2"
 	cmdVersion     = "version"
 	cmdVerack      = "verack"
 	cmdSendcmpct   = "sendcmpct"
 	cmdGetheaders  = "getheaders"
 	cmdAddr        = "addr"
 	cmdInv         = "inv"
-	cmdGetdata     = "getdata"
+	CmdGetdata     = "getdata"
+	CmdWtxidrelay  = "wtxidrelay"
 	cmdNotfound    = "notfound"
 	cmdGetblocks   = "getblocks"
 	cmdTx          = "tx"
@@ -33,13 +41,14 @@ const (
 	cmdCmpctblock  = "cmpctblock"
 	cmdGetblocktxn = "getblocktxn"
 	cmdBlocktxn    = "blocktxn"
-
-	commandLength = 12
+	cmdMempool     = "mempool"
+	cmdGetAddr     = "getaddr"
+	commandLength  = 12
 )
 
 const (
 	// Version ...
-	Version = 70015
+	Version = 70016
 
 	// SrvNodeNetwork This node can be asked for full blocks instead of just headers.
 	SrvNodeNetwork = 1
@@ -54,36 +63,43 @@ const (
 )
 
 var commands = map[string][commandLength]byte{
-	cmdVersion:     newCommand(cmdVersion),
-	cmdVerack:      newCommand(cmdVerack),
-	cmdPing:        newCommand(cmdPing),
-	cmdPong:        newCommand(cmdPong),
-	cmdSendcmpct:   newCommand(cmdSendcmpct),
-	cmdGetheaders:  newCommand(cmdGetheaders),
-	cmdAddr:        newCommand(cmdAddr),
-	cmdInv:         newCommand(cmdInv),
-	cmdGetdata:     newCommand(cmdGetdata),
-	cmdNotfound:    newCommand(cmdNotfound),
-	cmdGetblocks:   newCommand(cmdGetblocks),
-	cmdTx:          newCommand(cmdTx),
-	cmdBlock:       newCommand(cmdBlock),
-	cmdHeaders:     newCommand(cmdHeaders),
-	cmdGetadd:      newCommand(cmdGetadd),
-	cmdMempoo:      newCommand(cmdMempoo),
-	cmdCheckorder:  newCommand(cmdCheckorder),
-	cmdSubmitorder: newCommand(cmdSubmitorder),
-	cmdReply:       newCommand(cmdReply),
-	cmdReject:      newCommand(cmdReject),
-	cmdFilterload:  newCommand(cmdFilterload),
-	cmdFilteradd:   newCommand(cmdFilteradd),
-	cmdFilterclear: newCommand(cmdFilterclear),
-	cmdMerkleblock: newCommand(cmdMerkleblock),
-	cmdAlert:       newCommand(cmdAlert),
-	cmdSendHeaders: newCommand(cmdSendHeaders),
-	cmdFeefilter:   newCommand(cmdFeefilter),
-	cmdCmpctblock:  newCommand(cmdCmpctblock),
-	cmdGetblocktxn: newCommand(cmdGetblocktxn),
-	cmdBlocktxn:    newCommand(cmdBlocktxn),
+	cmdPkgtxns:      newCommand(cmdPkgtxns),
+	cmdGetpkgtxns:   newCommand(cmdGetpkgtxns),
+	cmdAncpkginfo:   newCommand(cmdAncpkginfo),
+	cmdSendpackages: newCommand(cmdSendpackages),
+	cmdSendaddrv2:   newCommand(cmdSendaddrv2),
+	CmdAddrv2:       newCommand(CmdAddrv2),
+	cmdVersion:      newCommand(cmdVersion),
+	cmdVerack:       newCommand(cmdVerack),
+	cmdPing:         newCommand(cmdPing),
+	cmdPong:         newCommand(cmdPong),
+	cmdSendcmpct:    newCommand(cmdSendcmpct),
+	cmdGetheaders:   newCommand(cmdGetheaders),
+	cmdAddr:         newCommand(cmdAddr),
+	cmdInv:          newCommand(cmdInv),
+	CmdGetdata:      newCommand(CmdGetdata),
+	CmdWtxidrelay:   newCommand(CmdWtxidrelay),
+	cmdNotfound:     newCommand(cmdNotfound),
+	cmdGetblocks:    newCommand(cmdGetblocks),
+	cmdTx:           newCommand(cmdTx),
+	cmdBlock:        newCommand(cmdBlock),
+	cmdHeaders:      newCommand(cmdHeaders),
+	cmdGetadd:       newCommand(cmdGetadd),
+	cmdMempoo:       newCommand(cmdMempoo),
+	cmdCheckorder:   newCommand(cmdCheckorder),
+	cmdSubmitorder:  newCommand(cmdSubmitorder),
+	cmdReply:        newCommand(cmdReply),
+	cmdReject:       newCommand(cmdReject),
+	cmdFilterload:   newCommand(cmdFilterload),
+	cmdFilteradd:    newCommand(cmdFilteradd),
+	cmdFilterclear:  newCommand(cmdFilterclear),
+	cmdMerkleblock:  newCommand(cmdMerkleblock),
+	cmdAlert:        newCommand(cmdAlert),
+	cmdSendHeaders:  newCommand(cmdSendHeaders),
+	cmdFeefilter:    newCommand(cmdFeefilter),
+	cmdCmpctblock:   newCommand(cmdCmpctblock),
+	cmdGetblocktxn:  newCommand(cmdGetblocktxn),
+	cmdBlocktxn:     newCommand(cmdBlocktxn),
 }
 
 func newCommand(command string) [commandLength]byte {

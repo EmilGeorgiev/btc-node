@@ -48,10 +48,6 @@ func (mh MessageHeader) Validate() error {
 		return fmt.Errorf("invalid magic: %x", mh.Magic)
 	}
 
-	if !mh.HasValidCommand() {
-		return fmt.Errorf("invalid command: %+v", mh.CommandString())
-	}
-
 	return nil
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 type MsgGetData struct {
-	Count     uint8 // TODO: Change to var_int
+	Count     VarInt
 	Inventory []InvVector
 }
 
@@ -19,17 +19,17 @@ func (gd MsgGetData) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if _, err := buf.Write(b); err != nil {
+	if _, err = buf.Write(b); err != nil {
 		return nil, err
 	}
 
 	for _, i := range gd.Inventory {
-		b, err := binary.Marshal(i)
+		b, err = binary.Marshal(i)
 		if err != nil {
 			return nil, err
 		}
 
-		if _, err := buf.Write(b); err != nil {
+		if _, err = buf.Write(b); err != nil {
 			return nil, err
 		}
 	}

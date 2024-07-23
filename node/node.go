@@ -299,6 +299,9 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		return errors2.NewE(fmt.Sprintf("receive unexpected msg Version from peer: %s that violate protocol.", addr))
 	case "verack":
 		return errors2.NewE(fmt.Sprintf("receive unexpected msg Verackn from peer: %s that violate protocol.", addr))
+
+	case "block":
+		fmt.Printf("Block data: %x\n", payload)
 	case "ping":
 		var ping p2p.MsgPing
 
@@ -325,7 +328,6 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		var h p2p.MsgHeaders
 		if err := binary.NewDecoder(buf).Decode(&h); err != nil {
 			fmt.Println("FAILED DECODE MSG HEADERS: ", err.Error())
-			fmt.Printf("PPPPPPPPPPPayloadIS: %x\n", payload)
 			return err
 		}
 		if err := n.handleHeaders(&msgHeader, h); err != nil {
@@ -333,7 +335,7 @@ func (n Node) handleMessage(headerRaw []byte, conn net.Conn) error {
 		}
 	default:
 		log.Println("missing handler for message of type: ", msgHeader.CommandString())
-		fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), payload)
+		//fmt.Printf("the payalod of msg: %s is: %x\n", msgHeader.CommandString(), payload)
 	}
 	return nil
 }
@@ -384,7 +386,7 @@ func (n Node) handleInv(header *p2p.MessageHeader, conn io.ReadWriter) error {
 
 	var getData p2p.MsgGetData
 	getData.Inventory = inv.Inventory
-	getData.Count = inv.Count
+	getData.Count = p2p.VarInt(inv.Count)
 
 	getDataMsg, err := p2p.NewMessage("getdata", n.Network, getData)
 	if err != nil {
@@ -402,11 +404,33 @@ func (n Node) handleInv(header *p2p.MessageHeader, conn io.ReadWriter) error {
 
 func (n Node) handleHeaders(header *p2p.MessageHeader, headers p2p.MsgHeaders) error {
 	fmt.Println("HANDLE MSG HEADERS")
-
-	log.Println("handle msg Headers with block headers:")
+	invVector := make([]p2p.InvVector, len(headers.BlockHeaders))
 	for i, bh := range headers.BlockHeaders {
-		log.Printf("Header: %d is: %+v\n", i, bh)
+		invVector[i] = p2p.InvVector{
+			Type: 2,
+			Hash: bh.PrevBlockHash,
+		}
 	}
+
+	getData := p2p.MsgGetData{
+		Count:     p2p.VarInt(len(headers.BlockHeaders)),
+		Inventory: invVector,
+	}
+
+	fmt.Println("send GET-DATA with COUNT: ", len(headers.BlockHeaders))
+	//paylaod, err := binary.Marshal(getData)
+	//if err != nil {
+	//	fmt.Println("Failed to marshal GETDATA message: ", err)
+	//}
+
+	msg, err := p2p.NewMessage(p2p.CmdGetdata, n.Network, getData)
+	if err != nil {
+		fmt.Println("failed to create message of type GETDATA: ", err)
+		return err
+	}
+
+	n.outgoingMsgs <- *msg
+
 	return nil
 }
 
