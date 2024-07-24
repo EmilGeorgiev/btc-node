@@ -10,9 +10,9 @@ import (
 type MsgTx struct {
 	Version    int32
 	Flag       uint16
-	TxInCount  uint8 // TODO: Convert to var_int
+	TxInCount  VarInt
 	TxIn       []TxInput
-	TxOutCount uint8 // TODO: Convert to var_int
+	TxOutCount VarInt
 	TxOut      []TxOutput
 	TxWitness  TxWitnessData
 	LockTime   uint32
@@ -46,10 +46,10 @@ func (tx *MsgTx) UnmarshalBinary(r io.Reader) error {
 			return err
 		}
 	} else {
-		tx.TxInCount = flagPrefix
+		tx.TxInCount = VarInt(flagPrefix)
 	}
 
-	for i := uint8(0); i < tx.TxInCount; i++ {
+	for i := VarInt(0); i < tx.TxInCount; i++ {
 		var txin TxInput
 
 		if err := d.Decode(&txin); err != nil {
@@ -63,7 +63,7 @@ func (tx *MsgTx) UnmarshalBinary(r io.Reader) error {
 		return err
 	}
 
-	for i := uint8(0); i < tx.TxOutCount; i++ {
+	for i := VarInt(0); i < tx.TxOutCount; i++ {
 		var txout TxOutput
 
 		if err := d.Decode(&txout); err != nil {
@@ -89,7 +89,7 @@ func (tx *MsgTx) UnmarshalBinary(r io.Reader) error {
 // TxInput represents transaction input.
 type TxInput struct {
 	PreviousOutput  OutPoint
-	ScriptLength    uint8 // TODO: Convert to var_int
+	ScriptLength    VarInt // TODO: Convert to var_int
 	SignatureScript []byte
 	Sequence        uint32
 }
@@ -97,19 +97,19 @@ type TxInput struct {
 // TxOutput represents transaction output.
 type TxOutput struct {
 	Value          int64
-	PkScriptLength uint8 // TODO: Convert to var_int
+	PkScriptLength VarInt
 	PkScript       []byte
 }
 
 // TxWitnessData represents transaction witness data.
 type TxWitnessData struct {
-	Count   uint8 // TODO: Convert to var_int
+	Count   VarInt
 	Witness []TxWitness
 }
 
 // TxWitness represents a component of transaction witness data.
 type TxWitness struct {
-	Length uint8 // TODO: Convert to var_int
+	Length VarInt
 	Data   []byte
 }
 
@@ -129,7 +129,7 @@ func (txw *TxWitnessData) UnmarshalBinary(r io.Reader) error {
 
 	txw.Witness = nil
 
-	for i := uint8(0); i < txw.Count; i++ {
+	for i := VarInt(0); i < txw.Count; i++ {
 		var w TxWitness
 
 		if err := d.Decode(&w); err != nil {
