@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
 )
@@ -53,4 +54,10 @@ func (mb *MsgBlock) UnmarshalBinary(r io.Reader) error {
 	}
 
 	return nil
+}
+
+func (mb *MsgBlock) GetHash() [32]byte {
+	b, _ := binary.Marshal(mb.BlockHeader)
+	firstHash := sha256.Sum256(b)
+	return sha256.Sum256(firstHash[:])
 }
