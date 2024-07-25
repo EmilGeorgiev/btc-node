@@ -1,3 +1,3 @@
 package sync
 
-//go:generate mockgen -source=chain_sync.go -destination=mock_chain_sync_test.go -package=$GOPACKAGE
+//go:generate mockgen -source=interfaces.go -destination=mocks_chain_sync_test.go -package=$GOPACKAGE

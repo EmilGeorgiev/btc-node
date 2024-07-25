@@ -1,13 +1,10 @@
 package sync
 
 import (
-	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"log"
-)
 
-type BlockValidator interface {
-	Validate(p2p.MsgBlock)
-}
+	"github.com/EmilGeorgiev/btc-node/network/p2p"
+)
 
 type MsgBlockHandler struct {
 	blockRepository       BlockRepository
@@ -32,30 +29,20 @@ func (mh MsgBlockHandler) HandleMsgBlock() {
 }
 
 func (mh MsgBlockHandler) handleMsgBlock() {
-	//var expectedBlocks []p2p.BlockHeader
-	//var nextBlockHash [32]byte
-	//var index int
 	for {
 		select {
 		case <-mh.stop:
 			log.Println("stop MsgBlockHandler")
 			return
 		case block := <-mh.blocks:
-			//if nextBlockHash != block.GetHash() {
-			//	log.Printf("unexpected block hash %x. Expect: %x", block.PrevBlockHash, nextBlockHash)
-			//	continue
-			//}
-			mh.blockValidator.Validate(block)
+			if err := mh.blockValidator.Validate(block); err != nil {
+				log.Printf("block is not valid: %s", err)
+			}
 			if err := mh.blockRepository.Save(block); err != nil {
 				log.Println("failed to save block: ", err)
 				continue
 			}
-			//index++
-			//nextBlockHash = nextBlock(expectedBlocks, index)
 			mh.notifyProcessedBlocks <- block
-			//case expectedBlocks = <-mh.expectedBlocks:
-			//	index = 0
-			//	nextBlockHash = nextBlock(expectedBlocks, index)
 		}
 	}
 }
