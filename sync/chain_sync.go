@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"errors"
 	"log"
 	"time"
 
@@ -8,22 +9,25 @@ import (
 )
 
 type ChainSync struct {
+	node               Node
 	headerRequester    HeaderRequester
 	headersHandler     HeadersHandler
 	blockHandler       BlockHandler
 	syncWait           time.Duration
 	processedBlocks    <-chan p2p.MsgBlock
 	startFromBlockHash chan<- [32]byte
+	peerAddr           string
 
 	stop chan struct{}
 	done chan struct{}
 }
 
-func NewChainSync(hr HeaderRequester, hh HeadersHandler, bh BlockHandler, d time.Duration, sh chan<- [32]byte, pb <-chan p2p.MsgBlock) ChainSync {
+func NewChainSync(hr HeaderRequester, hh HeadersHandler, bh BlockHandler, node Node, d time.Duration, sh chan<- [32]byte, pb <-chan p2p.MsgBlock) ChainSync {
 	return ChainSync{
 		headerRequester:    hr,
 		headersHandler:     hh,
 		blockHandler:       bh,
+		node:               node,
 		syncWait:           d,
 		startFromBlockHash: sh,
 		processedBlocks:    pb,
@@ -33,7 +37,8 @@ func NewChainSync(hr HeaderRequester, hh HeadersHandler, bh BlockHandler, d time
 	}
 }
 
-func (cs ChainSync) Start() {
+func (cs *ChainSync) Start() {
+	cs.peerAddr = cs.node.GetPeerAddress()
 	cs.headersHandler.HandleMsgHeaders()
 	cs.blockHandler.HandleBlockMessages()
 	go cs.start()
@@ -57,8 +62,12 @@ func (cs ChainSync) start() {
 		case <-timer.C:
 			log.Println("Start new chain sync iteration.")
 			timer.Reset(cs.syncWait)
-			hash, err := cs.headerRequester.RequestHeadersFromLastBlock()
+			hash, err := cs.headerRequester.RequestHeadersFromLastBlock(cs.peerAddr)
 			if err != nil {
+				if errors.Is(err, ErrFailedToSendMsgGetHeaders) {
+					cs.peerAddr = cs.node.GetPeerAddress()
+				}
+
 				continue
 			}
 			cs.startFromBlockHash <- hash

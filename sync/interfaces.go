@@ -10,8 +10,12 @@ type BlockHandler interface {
 	HandleBlockMessages()
 }
 
+type Node interface {
+	GetPeerAddress() string
+}
+
 type HeaderRequester interface {
-	RequestHeadersFromLastBlock() ([32]byte, error)
+	RequestHeadersFromLastBlock(fromPeer string) ([32]byte, error)
 }
 
 type BlockRepository interface {
@@ -21,7 +25,7 @@ type BlockRepository interface {
 }
 
 type MsgSender interface {
-	SendMsg(message p2p.Message) error
+	SendMsg(message p2p.Message, toPeer string) error
 }
 
 type BlockValidator interface {

@@ -15,6 +15,10 @@ func TestHandleMsgHeaders_HappyPath(t *testing.T) {
 	bh3 := newBlockHeader(sync.Hash(bh2))
 	blockHeaders := []p2p.BlockHeader{bh1, bh2, bh3}
 	msgHeaders := p2p.MsgHeaders{Count: 3, BlockHeaders: blockHeaders}
+	msgHeadersPeer := sync.HeadersFromPeer{
+		Headers:  msgHeaders,
+		PeerAddr: "8.8.8.8/32",
+	}
 
 	msggetdata := p2p.MsgGetData{
 		Count: 3,
@@ -29,16 +33,16 @@ func TestHandleMsgHeaders_HappyPath(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	msgSender := sync.NewMockMsgSender(ctrl)
-	msgSender.EXPECT().SendMsg(*msgGetData).Return(nil).Times(1)
+	msgSender.EXPECT().SendMsg(*msgGetData, "8.8.8.8/32").Return(nil).Times(1)
 
 	stop := make(chan struct{})
 	expectedBlockHashes := make(chan [32]byte)
-	msgHeadersCh := make(chan p2p.MsgHeaders)
-	headersHandler := sync.NewMsgHeaderHandler("mainnet", msgSender, msgHeadersCh, expectedBlockHashes, stop)
+	msgHeadersFromPeer := make(chan sync.HeadersFromPeer)
+	headersHandler := sync.NewMsgHeaderHandler("mainnet", msgSender, msgHeadersFromPeer, expectedBlockHashes, stop)
 	headersHandler.HandleMsgHeaders()
 
 	expectedBlockHashes <- prevBlockHash
-	msgHeadersCh <- msgHeaders
+	msgHeadersFromPeer <- msgHeadersPeer
 
 	headersHandler.Stop()
 }
@@ -48,19 +52,23 @@ func TestHandleMsgHeaders_WhenMsgHeadersHasZeroBlockHeaders(t *testing.T) {
 
 	blockHeaders := []p2p.BlockHeader{}
 	msgHeaders := p2p.MsgHeaders{Count: 0, BlockHeaders: blockHeaders}
+	hfp := sync.HeadersFromPeer{
+		Headers:  msgHeaders,
+		PeerAddr: "8.8.8.8/32",
+	}
 
 	ctrl := gomock.NewController(t)
 	msgSender := sync.NewMockMsgSender(ctrl)
-	msgSender.EXPECT().SendMsg(gomock.Any()).Times(0)
+	msgSender.EXPECT().SendMsg(gomock.Any(), "8.8.8.8/32").Times(0)
 
 	stop := make(chan struct{})
 	expectedBlockHashes := make(chan [32]byte)
-	msgHeadersCh := make(chan p2p.MsgHeaders)
+	msgHeadersCh := make(chan sync.HeadersFromPeer)
 	headersHandler := sync.NewMsgHeaderHandler("mainnet", msgSender, msgHeadersCh, expectedBlockHashes, stop)
 	headersHandler.HandleMsgHeaders()
 
 	expectedBlockHashes <- prevBlockHash
-	msgHeadersCh <- msgHeaders
+	msgHeadersCh <- hfp
 
 	headersHandler.Stop()
 }
@@ -73,19 +81,23 @@ func TestHandleMsgHeaders_WhenMsgHeadersContainsUnwantedBlockHeaders(t *testing.
 	bh3 := newBlockHeader(sync.Hash(bh2))
 	blockHeaders := []p2p.BlockHeader{bh1, bh2, bh3}
 	msgHeaders := p2p.MsgHeaders{Count: 3, BlockHeaders: blockHeaders}
+	hfp := sync.HeadersFromPeer{
+		Headers:  msgHeaders,
+		PeerAddr: "8.8.8.8/32",
+	}
 
 	ctrl := gomock.NewController(t)
 	msgSender := sync.NewMockMsgSender(ctrl)
-	msgSender.EXPECT().SendMsg(gomock.Any()).Times(0)
+	msgSender.EXPECT().SendMsg(gomock.Any(), "8.8.8.8/32").Times(0)
 
 	stop := make(chan struct{})
 	expectedBlockHashes := make(chan [32]byte)
-	msgHeadersCh := make(chan p2p.MsgHeaders)
+	msgHeadersCh := make(chan sync.HeadersFromPeer)
 	headersHandler := sync.NewMsgHeaderHandler("mainnet", msgSender, msgHeadersCh, expectedBlockHashes, stop)
 	headersHandler.HandleMsgHeaders()
 
 	expectedBlockHashes <- prevBlockHash
-	msgHeadersCh <- msgHeaders
+	msgHeadersCh <- hfp
 
 	headersHandler.Stop()
 }

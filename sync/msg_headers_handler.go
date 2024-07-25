@@ -2,6 +2,7 @@ package sync
 
 import (
 	"crypto/sha256"
+
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
@@ -9,13 +10,13 @@ import (
 type MsgHeadersHandler struct {
 	network     string
 	msgSender   MsgSender
-	headers     <-chan p2p.MsgHeaders
+	headers     <-chan HeadersFromPeer
 	blockHashes <-chan [32]byte
 	stop        chan struct{}
 	done        chan struct{}
 }
 
-func NewMsgHeaderHandler(n string, ms MsgSender, h <-chan p2p.MsgHeaders, b <-chan [32]byte, s chan struct{}) MsgHeadersHandler {
+func NewMsgHeaderHandler(n string, ms MsgSender, h <-chan HeadersFromPeer, b <-chan [32]byte, s chan struct{}) MsgHeadersHandler {
 	return MsgHeadersHandler{
 		network:     n,
 		msgSender:   ms,
@@ -35,6 +36,11 @@ func (mh MsgHeadersHandler) Stop() {
 	<-mh.done
 }
 
+type HeadersFromPeer struct {
+	Headers  p2p.MsgHeaders
+	PeerAddr string
+}
+
 func (mh MsgHeadersHandler) handleHeaders() {
 	var expectBlockHeadersStartedFromHash [32]byte
 	for {
@@ -44,18 +50,19 @@ func (mh MsgHeadersHandler) handleHeaders() {
 			return
 		case expectBlockHeadersStartedFromHash = <-mh.blockHashes:
 		case msgH := <-mh.headers: // handle MsgHeaders
-			if (len(msgH.BlockHeaders) == 0) || (msgH.BlockHeaders[0].PrevBlockHash != expectBlockHeadersStartedFromHash) {
+			headers := msgH.Headers.BlockHeaders
+			if (len(headers) == 0) || (headers[0].PrevBlockHash != expectBlockHeadersStartedFromHash) {
 				continue
 			}
 
-			inv := make([]p2p.InvVector, len(msgH.BlockHeaders))
-			for i := 0; i < len(msgH.BlockHeaders); i++ {
-				inv[i] = p2p.InvVector{Type: 2, Hash: Hash(msgH.BlockHeaders[i])}
+			inv := make([]p2p.InvVector, len(headers))
+			for i := 0; i < len(msgH.Headers.BlockHeaders); i++ {
+				inv[i] = p2p.InvVector{Type: 2, Hash: Hash(headers[i])}
 			}
 
-			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(msgH.BlockHeaders)), Inventory: inv}
+			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}
 			msg, _ := p2p.NewMessage(p2p.CmdGetdata, mh.network, msgGetdata)
-			if err := mh.msgSender.SendMsg(*msg); err != nil {
+			if err := mh.msgSender.SendMsg(*msg, msgH.PeerAddr); err != nil {
 				expectBlockHeadersStartedFromHash = [32]byte{}
 			}
 		}

@@ -19,7 +19,7 @@ func NewHeadersRequester(n string, br BlockRepository, ms MsgSender) HeadersRequ
 	}
 }
 
-func (cs HeadersRequester) RequestHeadersFromLastBlock() ([32]byte, error) {
+func (cs HeadersRequester) RequestHeadersFromLastBlock(peer string) ([32]byte, error) {
 	block, err := cs.blockRepository.GetLast()
 	if err != nil {
 		return [32]byte{}, errors.Join(ErrFailedToGetLastBlock, err)
@@ -30,7 +30,7 @@ func (cs HeadersRequester) RequestHeadersFromLastBlock() ([32]byte, error) {
 		return [32]byte{}, errors.Join(ErrFailedToCreateMsgGetHeaders, err)
 	}
 
-	if err = cs.msgSender.SendMsg(*gh); err != nil {
+	if err = cs.msgSender.SendMsg(*gh, peer); err != nil {
 		return [32]byte{}, errors.Join(ErrFailedToSendMsgGetHeaders, err)
 	}
 

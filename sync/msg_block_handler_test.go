@@ -3,7 +3,7 @@ package sync_test
 import (
 	"errors"
 	"testing"
-	
+
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/EmilGeorgiev/btc-node/sync"
 	"github.com/golang/mock/gomock"

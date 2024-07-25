@@ -21,11 +21,11 @@ func TestRequestHeadersFromLastBlock_HappyPath(t *testing.T) {
 	blockRepo := sync.NewMockBlockRepository(ctrl)
 	blockRepo.EXPECT().GetLast().Return(lastBlock, nil)
 	msgSender := sync.NewMockMsgSender(ctrl)
-	msgSender.EXPECT().SendMsg(*msgGetHeaders)
+	msgSender.EXPECT().SendMsg(*msgGetHeaders, "8.8.8.8/32")
 
 	hr := sync.NewHeadersRequester("mainnet", blockRepo, msgSender)
 
-	actual, err := hr.RequestHeadersFromLastBlock()
+	actual, err := hr.RequestHeadersFromLastBlock("8.8.8.8/32")
 
 	require.NoError(t, err)
 	require.Equal(t, lastBlock.GetHash(), actual)
@@ -38,7 +38,7 @@ func TestRequestHeadersFromLastBlock_WhenGetMsgFromDBFail(t *testing.T) {
 
 	hr := sync.NewHeadersRequester("", blockRepo, nil)
 
-	_, err := hr.RequestHeadersFromLastBlock()
+	_, err := hr.RequestHeadersFromLastBlock("127.0.0.1/32")
 	require.NotNil(t, errors.Join(sync.ErrFailedToGetLastBlock, errors.New("err"), err))
 }
 
@@ -53,10 +53,10 @@ func TestRequestHeadersFromLastBlock_WhenSendMsgFail(t *testing.T) {
 	blockRepo := sync.NewMockBlockRepository(ctrl)
 	blockRepo.EXPECT().GetLast().Return(lastBlock, nil)
 	msgSender := sync.NewMockMsgSender(ctrl)
-	msgSender.EXPECT().SendMsg(*msgGetHeaders).Return(errors.New("err"))
+	msgSender.EXPECT().SendMsg(*msgGetHeaders, "127.0.0.1/32").Return(errors.New("err"))
 
 	hr := sync.NewHeadersRequester("mainnet", blockRepo, msgSender)
 
-	_, err := hr.RequestHeadersFromLastBlock()
+	_, err := hr.RequestHeadersFromLastBlock("127.0.0.1/32")
 	require.Equal(t, errors.Join(sync.ErrFailedToSendMsgGetHeaders, errors.New("err")), err)
 }

@@ -81,6 +81,43 @@ func (mr *MockBlockHandlerMockRecorder) HandleBlockMessages() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleBlockMessages", reflect.TypeOf((*MockBlockHandler)(nil).HandleBlockMessages))
 }
 
+// MockNode is a mock of Node interface.
+type MockNode struct {
+	ctrl     *gomock.Controller
+	recorder *MockNodeMockRecorder
+}
+
+// MockNodeMockRecorder is the mock recorder for MockNode.
+type MockNodeMockRecorder struct {
+	mock *MockNode
+}
+
+// NewMockNode creates a new mock instance.
+func NewMockNode(ctrl *gomock.Controller) *MockNode {
+	mock := &MockNode{ctrl: ctrl}
+	mock.recorder = &MockNodeMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNode) EXPECT() *MockNodeMockRecorder {
+	return m.recorder
+}
+
+// GetPeerAddress mocks base method.
+func (m *MockNode) GetPeerAddress() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPeerAddress")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetPeerAddress indicates an expected call of GetPeerAddress.
+func (mr *MockNodeMockRecorder) GetPeerAddress() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeerAddress", reflect.TypeOf((*MockNode)(nil).GetPeerAddress))
+}
+
 // MockHeaderRequester is a mock of HeaderRequester interface.
 type MockHeaderRequester struct {
 	ctrl     *gomock.Controller
@@ -105,18 +142,18 @@ func (m *MockHeaderRequester) EXPECT() *MockHeaderRequesterMockRecorder {
 }
 
 // RequestHeadersFromLastBlock mocks base method.
-func (m *MockHeaderRequester) RequestHeadersFromLastBlock() ([32]byte, error) {
+func (m *MockHeaderRequester) RequestHeadersFromLastBlock(fromPeer string) ([32]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestHeadersFromLastBlock")
+	ret := m.ctrl.Call(m, "RequestHeadersFromLastBlock", fromPeer)
 	ret0, _ := ret[0].([32]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RequestHeadersFromLastBlock indicates an expected call of RequestHeadersFromLastBlock.
-func (mr *MockHeaderRequesterMockRecorder) RequestHeadersFromLastBlock() *gomock.Call {
+func (mr *MockHeaderRequesterMockRecorder) RequestHeadersFromLastBlock(fromPeer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestHeadersFromLastBlock", reflect.TypeOf((*MockHeaderRequester)(nil).RequestHeadersFromLastBlock))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestHeadersFromLastBlock", reflect.TypeOf((*MockHeaderRequester)(nil).RequestHeadersFromLastBlock), fromPeer)
 }
 
 // MockBlockRepository is a mock of BlockRepository interface.
@@ -210,17 +247,17 @@ func (m *MockMsgSender) EXPECT() *MockMsgSenderMockRecorder {
 }
 
 // SendMsg mocks base method.
-func (m *MockMsgSender) SendMsg(message p2p.Message) error {
+func (m *MockMsgSender) SendMsg(message p2p.Message, toPeer string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendMsg", message)
+	ret := m.ctrl.Call(m, "SendMsg", message, toPeer)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SendMsg indicates an expected call of SendMsg.
-func (mr *MockMsgSenderMockRecorder) SendMsg(message interface{}) *gomock.Call {
+func (mr *MockMsgSenderMockRecorder) SendMsg(message, toPeer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockMsgSender)(nil).SendMsg), message)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockMsgSender)(nil).SendMsg), message, toPeer)
 }
 
 // MockBlockValidator is a mock of BlockValidator interface.

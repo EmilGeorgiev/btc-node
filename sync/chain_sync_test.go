@@ -1,7 +1,6 @@
 package sync_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -14,9 +13,14 @@ import (
 func TestChainSync_Start_AndStop(t *testing.T) {
 	lastBlockHash := [32]byte{0x3B, 0xA3, 0xED, 0xFD, 0x7A, 0x7B, 0x12, 0xB2, 0x7A, 0xC7, 0x2C, 0x3E, 0x67, 0x76, 0x8F,
 		0x61, 0x7F, 0xC8, 0x1B, 0xC3, 0x88, 0x8A, 0x51, 0x32, 0x3A, 0x9F, 0xB8, 0xAA, 0x4B, 0x1E, 0x5E, 0x4A}
+
+	peerAddr := "8.8.8.8/32"
+
 	ctrl := gomock.NewController(t)
+	node := sync.NewMockNode(ctrl)
+	node.EXPECT().GetPeerAddress().Return(peerAddr).Times(1)
 	headerRequester := sync.NewMockHeaderRequester(ctrl)
-	headerRequester.EXPECT().RequestHeadersFromLastBlock().Return(lastBlockHash, nil)
+	headerRequester.EXPECT().RequestHeadersFromLastBlock(peerAddr).Return(lastBlockHash, nil)
 	headersHandler := sync.NewMockHeadersHandler(ctrl)
 	headersHandler.EXPECT().HandleMsgHeaders()
 	msgBlockHandler := sync.NewMockBlockHandler(ctrl)
@@ -24,7 +28,7 @@ func TestChainSync_Start_AndStop(t *testing.T) {
 
 	startFromHashes := make(chan [32]byte)
 	processesBlocks := make(chan p2p.MsgBlock)
-	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, 10*time.Minute, startFromHashes, processesBlocks)
+	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, node, 10*time.Minute, startFromHashes, processesBlocks)
 	chs.Start()
 
 	actual := <-startFromHashes
@@ -35,9 +39,13 @@ func TestChainSync_Start_AndStop(t *testing.T) {
 func TestChainSync_Start_WhenReceiveProcessedBlocks(t *testing.T) {
 	lastBlockHash := [32]byte{0x3B, 0xA3, 0xED, 0xFD, 0x7A, 0x7B, 0x12, 0xB2, 0x7A, 0xC7, 0x2C, 0x3E, 0x67, 0x76, 0x8F,
 		0x61, 0x7F, 0xC8, 0x1B, 0xC3, 0x88, 0x8A, 0x51, 0x32, 0x3A, 0x9F, 0xB8, 0xAA, 0x4B, 0x1E, 0x5E, 0x4A}
+	peerAddr := "8.8.8.8/32"
+
 	ctrl := gomock.NewController(t)
+	node := sync.NewMockNode(ctrl)
+	node.EXPECT().GetPeerAddress().Return(peerAddr).Times(1)
 	headerRequester := sync.NewMockHeaderRequester(ctrl)
-	headerRequester.EXPECT().RequestHeadersFromLastBlock().Return(lastBlockHash, nil).MaxTimes(1)
+	headerRequester.EXPECT().RequestHeadersFromLastBlock(peerAddr).Return(lastBlockHash, nil).MaxTimes(1)
 	headersHandler := sync.NewMockHeadersHandler(ctrl)
 	headersHandler.EXPECT().HandleMsgHeaders().MaxTimes(1)
 	msgBlockHandler := sync.NewMockBlockHandler(ctrl)
@@ -45,7 +53,7 @@ func TestChainSync_Start_WhenReceiveProcessedBlocks(t *testing.T) {
 
 	startFromHashes := make(chan [32]byte, 1)
 	processesBlocks := make(chan p2p.MsgBlock)
-	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, 10*time.Millisecond, startFromHashes, processesBlocks)
+	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, node, 10*time.Millisecond, startFromHashes, processesBlocks)
 	chs.Start()
 
 	actual := <-startFromHashes
@@ -73,9 +81,13 @@ Loop:
 func TestChainSync_Start_WhenNoProcessedBlockAreReceived(t *testing.T) {
 	lastBlockHash := [32]byte{0x3B, 0xA3, 0xED, 0xFD, 0x7A, 0x7B, 0x12, 0xB2, 0x7A, 0xC7, 0x2C, 0x3E, 0x67, 0x76, 0x8F,
 		0x61, 0x7F, 0xC8, 0x1B, 0xC3, 0x88, 0x8A, 0x51, 0x32, 0x3A, 0x9F, 0xB8, 0xAA, 0x4B, 0x1E, 0x5E, 0x4A}
+	peerAddr := "8.8.8.8/32"
+
 	ctrl := gomock.NewController(t)
+	node := sync.NewMockNode(ctrl)
+	node.EXPECT().GetPeerAddress().Return(peerAddr).Times(1)
 	headerRequester := sync.NewMockHeaderRequester(ctrl)
-	headerRequester.EXPECT().RequestHeadersFromLastBlock().Return(lastBlockHash, nil).AnyTimes()
+	headerRequester.EXPECT().RequestHeadersFromLastBlock(peerAddr).Return(lastBlockHash, nil).AnyTimes()
 	headersHandler := sync.NewMockHeadersHandler(ctrl)
 	headersHandler.EXPECT().HandleMsgHeaders().AnyTimes()
 	msgBlockHandler := sync.NewMockBlockHandler(ctrl)
@@ -83,7 +95,7 @@ func TestChainSync_Start_WhenNoProcessedBlockAreReceived(t *testing.T) {
 
 	startFromHashes := make(chan [32]byte, 100)
 	processesBlocks := make(chan p2p.MsgBlock)
-	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, 10*time.Millisecond, startFromHashes, processesBlocks)
+	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, node, 10*time.Millisecond, startFromHashes, processesBlocks)
 	chs.Start()
 
 	time.Sleep(30 * time.Millisecond)
@@ -98,10 +110,16 @@ func TestChainSync_Start_WhenNoProcessedBlockAreReceived(t *testing.T) {
 func TestChainSync_Start_WhenRequestHeadersFailed(t *testing.T) {
 	lastBlockHash := [32]byte{0x3B, 0xA3, 0xED, 0xFD, 0x7A, 0x7B, 0x12, 0xB2, 0x7A, 0xC7, 0x2C, 0x3E, 0x67, 0x76, 0x8F,
 		0x61, 0x7F, 0xC8, 0x1B, 0xC3, 0x88, 0x8A, 0x51, 0x32, 0x3A, 0x9F, 0xB8, 0xAA, 0x4B, 0x1E, 0x5E, 0x4A}
+	peerAddr := "8.8.8.8/32"
+	peerAddr2 := "7.7.7.7/32"
+
 	ctrl := gomock.NewController(t)
+	node := sync.NewMockNode(ctrl)
+	node.EXPECT().GetPeerAddress().Return(peerAddr).Times(1)
+	node.EXPECT().GetPeerAddress().Return(peerAddr2).Times(1)
 	headerRequester := sync.NewMockHeaderRequester(ctrl)
-	headerRequester.EXPECT().RequestHeadersFromLastBlock().Return([32]byte{}, errors.New("err")).Times(1)
-	headerRequester.EXPECT().RequestHeadersFromLastBlock().Return(lastBlockHash, nil).Times(1)
+	headerRequester.EXPECT().RequestHeadersFromLastBlock(peerAddr).Return([32]byte{}, sync.ErrFailedToSendMsgGetHeaders).Times(1)
+	headerRequester.EXPECT().RequestHeadersFromLastBlock(peerAddr2).Return(lastBlockHash, nil).Times(1)
 	headersHandler := sync.NewMockHeadersHandler(ctrl)
 	headersHandler.EXPECT().HandleMsgHeaders().Times(1)
 	msgBlockHandler := sync.NewMockBlockHandler(ctrl)
@@ -109,10 +127,11 @@ func TestChainSync_Start_WhenRequestHeadersFailed(t *testing.T) {
 
 	startFromHashes := make(chan [32]byte)
 	processesBlocks := make(chan p2p.MsgBlock)
-	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, 10*time.Millisecond, startFromHashes, processesBlocks)
+	chs := sync.NewChainSync(headerRequester, headersHandler, msgBlockHandler, node, 10*time.Millisecond, startFromHashes, processesBlocks)
 	chs.Start()
 
 	actual := <-startFromHashes
 	chs.Stop()
 	require.Equal(t, lastBlockHash, actual)
+	require.Equal(t, 0, len(startFromHashes))
 }
