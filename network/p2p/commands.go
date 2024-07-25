@@ -15,7 +15,7 @@ const (
 	cmdVersion     = "version"
 	cmdVerack      = "verack"
 	cmdSendcmpct   = "sendcmpct"
-	cmdGetheaders  = "getheaders"
+	CmdGetheaders  = "getheaders"
 	cmdAddr        = "addr"
 	cmdInv         = "inv"
 	CmdGetdata     = "getdata"
@@ -74,7 +74,7 @@ var commands = map[string][commandLength]byte{
 	cmdPing:         newCommand(cmdPing),
 	cmdPong:         newCommand(cmdPong),
 	cmdSendcmpct:    newCommand(cmdSendcmpct),
-	cmdGetheaders:   newCommand(cmdGetheaders),
+	CmdGetheaders:   newCommand(CmdGetheaders),
 	cmdAddr:         newCommand(cmdAddr),
 	cmdInv:          newCommand(cmdInv),
 	CmdGetdata:      newCommand(CmdGetdata),

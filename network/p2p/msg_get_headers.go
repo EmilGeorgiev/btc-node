@@ -15,5 +15,5 @@ func NewMsgGetHeader(network string, hashCount uint8, startBlock, stopBlock [32]
 		StopBlock:  stopBlock,
 	}
 
-	return NewMessage(cmdGetheaders, network, payload)
+	return NewMessage(CmdGetheaders, network, payload)
 }

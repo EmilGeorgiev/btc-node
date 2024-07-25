@@ -1,42 +1,47 @@
-package sync_test
+package sync
 
 import (
-	"crypto/sha256"
-	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
-	"github.com/EmilGeorgiev/btc-node/sync"
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func TestStartSync(t *testing.T) {
-	messages := make(chan p2p.Message, 1000)
-
-	ctrl := gomock.NewController(t)
-	blockRepo := sync.NewMockBlockRepository(ctrl)
-	msgSender := sync.NewMockMsgSender(ctrl)
-
+func TestChanSync_RequestHeatherFromLastBlock(t *testing.T) {
 	prevBlockHash := [32]byte{0x3B, 0xA3, 0xED, 0xFD, 0x7A, 0x7B, 0x12, 0xB2, 0x7A, 0xC7, 0x2C, 0x3E, 0x67, 0x76, 0x8F, 0x61, 0x7F, 0xC8, 0x1B, 0xC3, 0x88, 0x8A, 0x51, 0x32, 0x3A, 0x9F, 0xB8, 0xAA, 0x4B, 0x1E, 0x5E, 0x4A}
 	lastBlockLocally := newMsgBlock(prevBlockHash)
 
-	msgGetHeather, _ := p2p.NewMsgGetHeader("mainnet", 1, lastBlockLocally.GetHash(), [32]byte{0})
+	payload := &p2p.MsgGetHeader{Version: p2p.Version, HashCount: 1, StartBlock: lastBlockLocally.GetHash(), StopBlock: [32]byte{0}}
+	msgGetHeather, _ := p2p.NewMessage(p2p.CmdGetheaders, "mainnet", payload)
 
-	blockRepo.EXPECT().GetLast().Return(lastBlockLocally)
-	msgSender.EXPECT().SendMsg(msgGetHeather).Return(nil)
+	ctrl := gomock.NewController(t)
+	blockRepo := NewMockBlockRepository(ctrl)
+	msgSender := NewMockMsgSender(ctrl)
+	blockRepo.EXPECT().GetLast().Return(lastBlockLocally, nil)
+	msgSender.EXPECT().SendMsg(*msgGetHeather).Return(nil)
 
-	bh1 := newBlockHeader(hash(lastBlockLocally.BlockHeader))
+	chSync := NewChainSync("mainnet", blockRepo, msgSender, nil, nil)
+	err := chSync.RequestHeadersFromLastBlock()
+	require.NoError(t, err)
+
+	got := <-chSync.expectedHeaders
+	require.Equal(t, *payload, got)
+}
+
+func TestChanSync_HandleMsgHeaders(t *testing.T) {
+	prevBlockHash := [32]byte{0x3B, 0xA3, 0xED, 0xFD, 0x7A, 0x7B, 0x12, 0xB2, 0x7A, 0xC7, 0x2C, 0x3E, 0x67, 0x76, 0x8F, 0x61, 0x7F, 0xC8, 0x1B, 0xC3, 0x88, 0x8A, 0x51, 0x32, 0x3A, 0x9F, 0xB8, 0xAA, 0x4B, 0x1E, 0x5E, 0x4A}
+	lastBlockLocally := newBlockHeader(prevBlockHash)
+	bh1 := newBlockHeader(hash(lastBlockLocally))
 	bh2 := newBlockHeader(hash(bh1))
 	bh3 := newBlockHeader(hash(bh2))
-	headers := p2p.MsgHeaders{
-		Count:        3,
-		BlockHeaders: []p2p.BlockHeader{bh1, bh2, bh3},
-	}
+	headers := p2p.MsgHeaders{Count: 3, BlockHeaders: []p2p.BlockHeader{bh1, bh2, bh3}}
 
-	msg, _ := p2p.NewMessage("headers", "mainnet", headers)
-	messages <- *msg
+	headersCh := make(<-chan p2p.MsgHeaders)
 
-	m.Start()
+	chSync := NewChainSync("", nil, nil, headersCh, nil)
+	go chSync.HandleMsgHeaders()
 
+	headersCh <- headers
 }
 
 func newMsgBlock(prevBlockHash [32]byte) p2p.MsgBlock {
@@ -64,10 +69,4 @@ func newBlockHeader(prevBlockHash [32]byte) p2p.BlockHeader {
 		Nonce:         1721836804,
 		TxnCount:      p2p.VarInt(1),
 	}
-}
-
-func hash(bh p2p.BlockHeader) [32]byte {
-	b, _ := binary.Marshal(bh)
-	firstHash := sha256.Sum256(b)
-	return sha256.Sum256(firstHash[:])
 }
