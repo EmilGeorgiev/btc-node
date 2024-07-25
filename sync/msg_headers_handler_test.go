@@ -1,4 +1,4 @@
-package sync
+package sync_test
 
 import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
