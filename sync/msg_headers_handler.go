@@ -2,7 +2,6 @@ package sync
 
 import (
 	"crypto/sha256"
-
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
@@ -12,16 +11,18 @@ type MsgHeadersHandler struct {
 	msgSender   MsgSender
 	headers     <-chan p2p.MsgHeaders
 	blockHashes <-chan [32]byte
-	stop        <-chan struct{}
+	stop        chan struct{}
+	done        chan struct{}
 }
 
-func NewMsgHeaderHandler(n string, ms MsgSender, h <-chan p2p.MsgHeaders, b <-chan [32]byte, s <-chan struct{}) MsgHeadersHandler {
+func NewMsgHeaderHandler(n string, ms MsgSender, h <-chan p2p.MsgHeaders, b <-chan [32]byte, s chan struct{}) MsgHeadersHandler {
 	return MsgHeadersHandler{
 		network:     n,
 		msgSender:   ms,
 		headers:     h,
 		blockHashes: b,
 		stop:        s,
+		done:        make(chan struct{}),
 	}
 }
 
@@ -29,11 +30,17 @@ func (mh MsgHeadersHandler) HandleMsgHeaders() {
 	go mh.handleHeaders()
 }
 
+func (mh MsgHeadersHandler) Stop() {
+	close(mh.stop)
+	<-mh.done
+}
+
 func (mh MsgHeadersHandler) handleHeaders() {
 	var expectBlockHeadersStartedFromHash [32]byte
 	for {
 		select {
 		case <-mh.stop:
+			close(mh.done)
 			return
 		case expectBlockHeadersStartedFromHash = <-mh.blockHashes:
 		case msgH := <-mh.headers: // handle MsgHeaders
