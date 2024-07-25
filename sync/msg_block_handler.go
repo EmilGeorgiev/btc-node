@@ -9,18 +9,20 @@ import (
 type MsgBlockHandler struct {
 	blockRepository       BlockRepository
 	blockValidator        BlockValidator
-	expectedBlocks        <-chan []p2p.BlockHeader
-	stop                  <-chan struct{}
+	stop                  chan struct{}
 	blocks                <-chan p2p.MsgBlock
 	notifyProcessedBlocks chan<- p2p.MsgBlock
+	done                  chan struct{}
 }
 
-func NewMsgBlockHandler(br BlockRepository, bv BlockValidator, eb <-chan []p2p.BlockHeader, s <-chan struct{}) MsgBlockHandler {
+func NewMsgBlockHandler(br BlockRepository, bv BlockValidator, blocks <-chan p2p.MsgBlock, s chan struct{}, notify chan<- p2p.MsgBlock) MsgBlockHandler {
 	return MsgBlockHandler{
-		blockRepository: br,
-		blockValidator:  bv,
-		expectedBlocks:  eb,
-		stop:            s,
+		blockRepository:       br,
+		blockValidator:        bv,
+		blocks:                blocks,
+		stop:                  s,
+		notifyProcessedBlocks: notify,
+		done:                  make(chan struct{}),
 	}
 }
 
@@ -28,15 +30,22 @@ func (mh MsgBlockHandler) HandleMsgBlock() {
 	go mh.handleMsgBlock()
 }
 
+func (mh MsgBlockHandler) Stop() {
+	close(mh.stop)
+	<-mh.done
+}
+
 func (mh MsgBlockHandler) handleMsgBlock() {
 	for {
 		select {
 		case <-mh.stop:
 			log.Println("stop MsgBlockHandler")
+			close(mh.done)
 			return
 		case block := <-mh.blocks:
 			if err := mh.blockValidator.Validate(block); err != nil {
 				log.Printf("block is not valid: %s", err)
+				continue
 			}
 			if err := mh.blockRepository.Save(block); err != nil {
 				log.Println("failed to save block: ", err)
