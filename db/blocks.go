@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	bolt "go.etcd.io/bbolt"
@@ -18,7 +19,7 @@ type BlocksRepo struct {
 	db *bolt.DB
 }
 
-func NewBlockRepo(db *bolt.DB) (BlocksRepo, error) {
+func NewBlockRepo(db *bolt.DB) (*BlocksRepo, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		if _, err := tx.CreateBucketIfNotExists(blockBucket); err != nil {
 			return err
@@ -34,7 +35,7 @@ func NewBlockRepo(db *bolt.DB) (BlocksRepo, error) {
 		return nil
 	})
 
-	return BlocksRepo{db}, err
+	return &BlocksRepo{db}, err
 }
 
 func (db *BlocksRepo) Save(block p2p.MsgBlock) error {
@@ -58,21 +59,28 @@ func (db *BlocksRepo) Save(block p2p.MsgBlock) error {
 	})
 }
 
-func (db *BlocksRepo) GetLastBlockHash() ([32]byte, error) {
-	var lastBlockHash []byte
+func (db *BlocksRepo) GetLast() (p2p.MsgBlock, error) {
+	var block p2p.MsgBlock
 	err := db.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(lastBlockBucket)
-		lastBlockHash = b.Get(lastBlockKey)
-		return nil
+		lastBlockHash := b.Get(lastBlockKey)
+
+		bl := tx.Bucket(blockBucket)
+		data := bl.Get(lastBlockHash)
+		if b == nil {
+			return errors.New("not found")
+		}
+
+		return json.Unmarshal(data, &block)
 	})
-	return [32]byte(lastBlockHash), err
+	return block, err
 }
 
-func (db *BlocksRepo) GetBlock(hash []byte) (p2p.MsgBlock, error) {
+func (db *BlocksRepo) Get(hash [32]byte) (p2p.MsgBlock, error) {
 	var block p2p.MsgBlock
 	err := db.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(blockBucket)
-		data := b.Get(hash)
+		data := b.Get(hash[:])
 		if data == nil {
 			return fmt.Errorf("block not found")
 		}

@@ -2,6 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/db"
+	"github.com/EmilGeorgiev/btc-node/network"
+	"github.com/EmilGeorgiev/btc-node/network/p2p"
+	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
 	"os"
 	"os/signal"
@@ -12,15 +16,48 @@ import (
 
 func Run(cfg Config) {
 
-	n, err := node.New(cfg.Network, cfg.UserAgent, cfg.ReadTimeout)
+	boltDB, err := db.NewBoltDB(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("can't initialize BoltDB: %s", err)
+	}
+	blockRepo, err := db.NewBlockRepo(boltDB.DB)
+	if err != nil {
+		log.Fatalf("can't initialize Block repository: %s", err)
+	}
+
+	syncCompleted := make(chan string)
+	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) *node.ServerPeer {
+		chHeaders := make(chan *p2p.MsgHeaders)
+		chBlock := make(chan *p2p.MsgBlock)
+		chProcessedBlock := make(chan *p2p.MsgBlock)
+		chHashes := make(chan [32]byte)
+		outgoingMsgs := make(chan *p2p.Message)
+
+		blockValidator := node.NewBlockValidator()
+		msgHandlers := []node.StartStop{
+			node.NewMsgHeaderHandler(cfg.Network, outgoingMsgs, chHeaders, chHashes, syncCompleted),
+			node.NewMsgBlockHandler(blockRepo, blockValidator, chBlock, chProcessedBlock),
+		}
+
+		handlersManager := node.NewMessageHandlersManager(msgHandlers)
+		expectedHeaders := make(chan [32]byte)
+		headersRequester := sync.NewHeadersRequester("network", blockRepo, outgoingMsgs, expectedHeaders)
+
+		processedBlocks := make(chan p2p.MsgBlock)
+		peerSync := sync.NewPeerSync(headersRequester, cfg.SyncWait, processedBlocks)
+		nmrw := network.NewMessageReadWriter(cfg.ReadTimeout, cfg.WriteTimeout)
+		msgHeaders := make(chan *p2p.MsgHeaders)
+		msgBlocks := make(chan *p2p.MsgBlock)
+		return node.NewServerPeer(cfg.Network, handlersManager, peerSync, nmrw, peer, outgoingMsgs, err, msgHeaders, msgBlocks)
+	}
+
+	peerErr := make(chan node.PeerErr)
+	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr)
 	if err != nil {
 		log.Fatalf("failed to initialize the Node: %s", err)
 	}
 
-	n.ConnectToPeers(cfg.PeerAddrs)
-	//if the node is run for the first time or was down for some time it can miss some of the new
-	// blocks and information. So it should sync with other peers
-	n.Sync()
+	n.Start()
 
 	// Create a signal channel to listen for interrupt or termination signals
 	signalChan := make(chan os.Signal, 1)

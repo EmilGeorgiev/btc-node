@@ -11,6 +11,53 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
+// MockStartStop is a mock of StartStop interface.
+type MockStartStop struct {
+	ctrl     *gomock.Controller
+	recorder *MockStartStopMockRecorder
+}
+
+// MockStartStopMockRecorder is the mock recorder for MockStartStop.
+type MockStartStopMockRecorder struct {
+	mock *MockStartStop
+}
+
+// NewMockStartStop creates a new mock instance.
+func NewMockStartStop(ctrl *gomock.Controller) *MockStartStop {
+	mock := &MockStartStop{ctrl: ctrl}
+	mock.recorder = &MockStartStopMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockStartStop) EXPECT() *MockStartStopMockRecorder {
+	return m.recorder
+}
+
+// Start mocks base method.
+func (m *MockStartStop) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockStartStopMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockStartStop)(nil).Start))
+}
+
+// Stop mocks base method.
+func (m *MockStartStop) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockStartStopMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockStartStop)(nil).Stop))
+}
+
 // MockHeadersHandler is a mock of HeadersHandler interface.
 type MockHeadersHandler struct {
 	ctrl     *gomock.Controller
@@ -34,16 +81,28 @@ func (m *MockHeadersHandler) EXPECT() *MockHeadersHandlerMockRecorder {
 	return m.recorder
 }
 
-// HandleMsgHeaders mocks base method.
-func (m *MockHeadersHandler) HandleMsgHeaders() {
+// StartHandleMsgHeaders mocks base method.
+func (m *MockHeadersHandler) StartHandleMsgHeaders() {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "HandleMsgHeaders")
+	m.ctrl.Call(m, "StartHandleMsgHeaders")
 }
 
-// HandleMsgHeaders indicates an expected call of HandleMsgHeaders.
-func (mr *MockHeadersHandlerMockRecorder) HandleMsgHeaders() *gomock.Call {
+// StartHandleMsgHeaders indicates an expected call of StartHandleMsgHeaders.
+func (mr *MockHeadersHandlerMockRecorder) StartHandleMsgHeaders() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleMsgHeaders", reflect.TypeOf((*MockHeadersHandler)(nil).HandleMsgHeaders))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartHandleMsgHeaders", reflect.TypeOf((*MockHeadersHandler)(nil).StartHandleMsgHeaders))
+}
+
+// Stop mocks base method.
+func (m *MockHeadersHandler) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockHeadersHandlerMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockHeadersHandler)(nil).Stop))
 }
 
 // MockBlockHandler is a mock of BlockHandler interface.
@@ -142,18 +201,17 @@ func (m *MockHeaderRequester) EXPECT() *MockHeaderRequesterMockRecorder {
 }
 
 // RequestHeadersFromLastBlock mocks base method.
-func (m *MockHeaderRequester) RequestHeadersFromLastBlock(fromPeer string) ([32]byte, error) {
+func (m *MockHeaderRequester) RequestHeadersFromLastBlock() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestHeadersFromLastBlock", fromPeer)
-	ret0, _ := ret[0].([32]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "RequestHeadersFromLastBlock")
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // RequestHeadersFromLastBlock indicates an expected call of RequestHeadersFromLastBlock.
-func (mr *MockHeaderRequesterMockRecorder) RequestHeadersFromLastBlock(fromPeer interface{}) *gomock.Call {
+func (mr *MockHeaderRequesterMockRecorder) RequestHeadersFromLastBlock() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestHeadersFromLastBlock", reflect.TypeOf((*MockHeaderRequester)(nil).RequestHeadersFromLastBlock), fromPeer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestHeadersFromLastBlock", reflect.TypeOf((*MockHeaderRequester)(nil).RequestHeadersFromLastBlock))
 }
 
 // MockBlockRepository is a mock of BlockRepository interface.

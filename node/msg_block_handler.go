@@ -1,32 +1,34 @@
-package sync
+package node
 
 import (
+	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
 
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
 
 type MsgBlockHandler struct {
-	blockRepository       BlockRepository
-	blockValidator        BlockValidator
+	blockRepository       sync.BlockRepository
+	blockValidator        sync.BlockValidator
 	stop                  chan struct{}
-	blocks                <-chan p2p.MsgBlock
-	notifyProcessedBlocks chan<- p2p.MsgBlock
+	blocks                <-chan *p2p.MsgBlock
+	notifyProcessedBlocks chan<- *p2p.MsgBlock
 	done                  chan struct{}
 }
 
-func NewMsgBlockHandler(br BlockRepository, bv BlockValidator, blocks <-chan p2p.MsgBlock, s chan struct{}, notify chan<- p2p.MsgBlock) MsgBlockHandler {
+func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks <-chan *p2p.MsgBlock, processed chan<- *p2p.MsgBlock) MsgBlockHandler {
 	return MsgBlockHandler{
 		blockRepository:       br,
 		blockValidator:        bv,
 		blocks:                blocks,
-		stop:                  s,
-		notifyProcessedBlocks: notify,
-		done:                  make(chan struct{}),
+		notifyProcessedBlocks: processed,
+
+		stop: make(chan struct{}),
+		done: make(chan struct{}),
 	}
 }
 
-func (mh MsgBlockHandler) HandleMsgBlock() {
+func (mh MsgBlockHandler) Start() {
 	go mh.handleMsgBlock()
 }
 
@@ -47,7 +49,7 @@ func (mh MsgBlockHandler) handleMsgBlock() {
 				log.Printf("block is not valid: %s", err)
 				continue
 			}
-			if err := mh.blockRepository.Save(block); err != nil {
+			if err := mh.blockRepository.Save(*block); err != nil {
 				log.Println("failed to save block: ", err)
 				continue
 			}

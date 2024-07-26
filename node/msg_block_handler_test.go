@@ -1,7 +1,8 @@
-package sync_test
+package node_test
 
 import (
 	"errors"
+	"github.com/EmilGeorgiev/btc-node/node"
 	"testing"
 
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
@@ -28,7 +29,7 @@ func TestHandleMsgBlocks_HappyPath(t *testing.T) {
 	stop := make(chan struct{})
 	blocks := make(chan p2p.MsgBlock)
 	notify := make(chan p2p.MsgBlock)
-	msgBlockHandle := sync.NewMsgBlockHandler(blockRepo, blockValidator, blocks, stop, notify)
+	msgBlockHandle := node.NewMsgBlockHandler(blockRepo, blockValidator, blocks, stop, notify)
 	msgBlockHandle.HandleMsgBlock()
 
 	blocks <- bl1
@@ -57,7 +58,7 @@ func TestHandleMsgBlocks_WhenValidateFail(t *testing.T) {
 	stop := make(chan struct{})
 	blocks := make(chan p2p.MsgBlock)
 	notify := make(chan p2p.MsgBlock, 1)
-	msgBlockHandle := sync.NewMsgBlockHandler(blockRepo, blockValidator, blocks, stop, notify)
+	msgBlockHandle := node.NewMsgBlockHandler(blockRepo, blockValidator, blocks, stop, notify)
 	msgBlockHandle.HandleMsgBlock()
 
 	blocks <- bl1
@@ -82,7 +83,7 @@ func TestHandleMsgBlocks_WhenSaveFail(t *testing.T) {
 	stop := make(chan struct{})
 	blocks := make(chan p2p.MsgBlock)
 	notify := make(chan p2p.MsgBlock)
-	msgBlockHandle := sync.NewMsgBlockHandler(blockRepo, blockValidator, blocks, stop, notify)
+	msgBlockHandle := node.NewMsgBlockHandler(blockRepo, blockValidator, blocks, stop, notify)
 	msgBlockHandle.HandleMsgBlock()
 
 	blocks <- bl1

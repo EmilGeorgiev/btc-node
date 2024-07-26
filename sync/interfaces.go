@@ -2,8 +2,14 @@ package sync
 
 import "github.com/EmilGeorgiev/btc-node/network/p2p"
 
+type StartStop interface {
+	Start()
+	Stop()
+}
+
 type HeadersHandler interface {
-	HandleMsgHeaders()
+	StartHandleMsgHeaders()
+	Stop()
 }
 
 type BlockHandler interface {
@@ -15,7 +21,7 @@ type Node interface {
 }
 
 type HeaderRequester interface {
-	RequestHeadersFromLastBlock(fromPeer string) ([32]byte, error)
+	RequestHeadersFromLastBlock() error
 }
 
 type BlockRepository interface {
@@ -29,5 +35,5 @@ type MsgSender interface {
 }
 
 type BlockValidator interface {
-	Validate(p2p.MsgBlock) error
+	Validate(*p2p.MsgBlock) error
 }
