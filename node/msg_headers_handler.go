@@ -53,6 +53,7 @@ func (mh MsgHeadersHandler) handleHeaders() {
 			return
 		case expectPrevBlockHash = <-mh.blockHashes:
 		case msgH := <-mh.headers: // handle MsgHeaders
+
 			headers := msgH.BlockHeaders
 			if len(headers) == 0 {
 				mh.syncCompleted <- struct{}{}
