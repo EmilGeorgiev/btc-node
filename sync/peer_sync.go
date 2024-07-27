@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"fmt"
 	"log"
 	"sync/atomic"
 	"time"
@@ -11,14 +12,14 @@ import (
 type PeerSync struct {
 	headerRequester HeaderRequester
 	syncWait        time.Duration
-	processedBlocks <-chan p2p.MsgBlock
+	processedBlocks <-chan *p2p.MsgBlock
 
 	isStarted atomic.Bool
 	stop      chan struct{}
 	done      chan struct{}
 }
 
-func NewPeerSync(hr HeaderRequester, d time.Duration, pb <-chan p2p.MsgBlock) *PeerSync {
+func NewPeerSync(hr HeaderRequester, d time.Duration, pb <-chan *p2p.MsgBlock) *PeerSync {
 	return &PeerSync{
 		headerRequester: hr,
 		syncWait:        d,
@@ -56,7 +57,8 @@ func (cs *PeerSync) start() {
 			log.Println("stop chain sync iterations")
 			cs.done <- struct{}{}
 			return
-		case <-cs.processedBlocks:
+		case block := <-cs.processedBlocks:
+			fmt.Println("PeerSync receive notification for processed block:", block.PrevBlockHash)
 			timer.Reset(cs.syncWait)
 		case <-timer.C:
 			log.Println("Start new chain sync iteration.")

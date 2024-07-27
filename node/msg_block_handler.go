@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
 
@@ -29,6 +30,7 @@ func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks 
 }
 
 func (mh MsgBlockHandler) Start() {
+	fmt.Println("START msg BLOCK handler")
 	go mh.handleMsgBlock()
 }
 
@@ -45,15 +47,19 @@ func (mh MsgBlockHandler) handleMsgBlock() {
 			mh.done <- struct{}{}
 			return
 		case block := <-mh.blocks:
+			fmt.Println("Validte blocks")
 			if err := mh.blockValidator.Validate(block); err != nil {
 				log.Printf("block is not valid: %s", err)
 				continue
 			}
+			fmt.Println("save it to DB")
 			if err := mh.blockRepository.Save(*block); err != nil {
 				log.Println("failed to save block: ", err)
 				continue
 			}
+			fmt.Println("Nofify processed block")
 			mh.notifyProcessedBlocks <- block
+			fmt.Println("after notify processed vblock")
 		}
 	}
 }

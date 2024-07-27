@@ -202,71 +202,39 @@ func (n *Node) getNextPeerConnMngForSync(currentIndex int) (PeerConnectionManage
 }
 
 func (n *Node) syncPeers() {
+	log.Println("Sync with peersssssss")
+	var currentPeerConnMng PeerConnectionManager
+	currentIndex := -1
 Loop:
 	for {
-		select {
-		case <-n.stop:
-			log.Println("Stop the goroutine that sync with peer")
+		log.Println("check for available ServerPeers")
+		currentPeerConnMng, currentIndex = n.getNextPeerConnMngForSync(currentIndex)
+		if currentPeerConnMng == nil {
+			// this means that the method Stop is alled
+			n.doneSync <- struct{}{}
 			return
-		default:
-			var currentPeerConnMng PeerConnectionManager
-			n.serverPeer.Range(func(key, value any) bool {
-				currentPeerConnMng = value.(PeerConnectionManager)
-				return false
-			})
-
-			if currentPeerConnMng != nil {
-				log.Println("START SYNC with peer")
-				currentPeerConnMng.Sync()
-				break Loop
+		}
+		log.Println("NODE SYNC PEER: start SYNC. call peerconnmanager")
+		currentPeerConnMng.Sync()
+		for {
+			select {
+			case <-n.stop:
+				log.Println("stop goroutine that manage Sync peers.")
+				currentPeerConnMng.StopSync()
+				n.doneSync <- struct{}{}
+				return
+			case peerErr := <-n.notifySyncForError:
+				if currentPeerConnMng.GetPeerAddr() == peerErr.Peer.Address {
+					log.Println("stop syncing with peer")
+					currentPeerConnMng.StopSync()
+					// if current peer to ehih w sync has error we continue to the next one
+					continue Loop
+				}
+			case <-n.syncCompleted:
+				fmt.Println("sync completed")
+				currentPeerConnMng.StopSync()
+				continue Loop
 			}
 		}
 	}
-
-	//
-	//	for {
-	//		select{
-	//		case <-n.stop:
-	//			log.Println("stop goroutine that manage Sync peers.")
-	//			currentPeerConnMng.StopSync()
-	//			n.doneSync <- struct{}{}
-	//			return
-	//		}
-	//	}
-	//
-	//	log.Println("Sync with peersssssss")
-	//	var currentPeerConnMng PeerConnectionManager
-	//	currentIndex := -1
-	//Loop:
-	//	for {
-	//		log.Println("check for available ServerPeers")
-	//		currentPeerConnMng, currentIndex = n.getNextPeerConnMngForSync(currentIndex)
-	//		if currentPeerConnMng == nil {
-	//			// this means that the method Stop is alled
-	//			n.doneSync <- struct{}{}
-	//			return
-	//		}
-	//		log.Println("NODE SYNC PEER: start SYNC. call peerconnmanager")
-	//		currentPeerConnMng.Sync()
-	//		for {
-	//			select {
-	//			case <-n.stop:
-	//				log.Println("stop goroutine that manage Sync peers.")
-	//				currentPeerConnMng.StopSync()
-	//				n.doneSync <- struct{}{}
-	//				return
-	//			case peerErr := <-n.notifySyncForError:
-	//				if currentPeerConnMng.GetPeerAddr() == peerErr.Peer.Address {
-	//					log.Println("stop syncing with peer")
-	//					currentPeerConnMng.StopSync()
-	//					// if current peer to ehih w sync has error we continue to the next one
-	//					continue Loop
-	//				}
-	//			case <-n.syncCompleted:
-	//				fmt.Println("sync completed")
-	//				currentPeerConnMng.StopSync()
-	//				continue Loop
-	//			}
-	//		}
-	//	}
 }

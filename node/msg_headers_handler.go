@@ -74,7 +74,7 @@ func (mh MsgHeadersHandler) handleHeaders() {
 			fmt.Println("Build get data")
 			inv := make([]p2p.InvVector, len(headers))
 			for i := 0; i < len(msgH.BlockHeaders); i++ {
-				inv[i] = p2p.InvVector{Type: 2, Hash: Hash(headers[i])}
+				inv[i] = p2p.InvVector{Type: 2, Hash: headers[i].PrevBlockHash}
 			}
 
 			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}

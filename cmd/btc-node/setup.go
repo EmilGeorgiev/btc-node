@@ -43,8 +43,8 @@ func Run(cfg Config) {
 
 		headersRequester := sync.NewHeadersRequester(cfg.Network, blockRepo, outgoingMsgs, expectedHeaders)
 
-		processedBlocks := make(chan p2p.MsgBlock)
-		peerSync := sync.NewPeerSync(headersRequester, cfg.SyncWait, processedBlocks)
+		//processedBlocks := make(chan p2p.MsgBlock)
+		peerSync := sync.NewPeerSync(headersRequester, cfg.SyncWait, chProcessedBlock)
 		nmrw := network.NewMessageReadWriter(cfg.ReadTimeout, cfg.WriteTimeout)
 		//msgHeaders := make(chan *p2p.MsgHeaders)
 		//msgBlocks := make(chan *p2p.MsgBlock)
