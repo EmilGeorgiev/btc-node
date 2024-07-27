@@ -70,6 +70,10 @@ func (sp *ServerPeer) Stop() {
 	<-sp.done // waiting for the goroutine that write to the conn to stop
 }
 
+func (sp *ServerPeer) GetPeerAddr() string {
+	return sp.peer.Address
+}
+
 type PeerErr struct {
 	Peer p2p.Peer
 	Err  error
