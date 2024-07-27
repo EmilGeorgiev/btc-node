@@ -13,7 +13,18 @@ import (
 
 const minimalSupportedVersion = 70016
 
-func CreateOutgoingHandshake(peerAddr common.Addr, network, userAgent string) (Handshake, error) {
+type HandshakeManager struct {
+}
+
+func NewHandshakeManager() HandshakeManager {
+	return HandshakeManager{}
+}
+
+func (hi HandshakeManager) CreateIncomingHandshake(network, userAgent string) (Handshake, error) {
+	return Handshake{}, nil
+}
+
+func (hi HandshakeManager) CreateOutgoingHandshake(peerAddr common.Addr, network, userAgent string) (Handshake, error) {
 	log.Println("Initialize handshake with peer: ", peerAddr.String())
 	conn, err := net.Dial("tcp", peerAddr.String())
 	if err != nil {

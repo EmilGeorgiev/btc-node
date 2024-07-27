@@ -26,7 +26,7 @@ func Run(cfg Config) {
 	}
 
 	syncCompleted := make(chan struct{})
-	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) node.StartStop {
+	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) node.PeerConnectionManager {
 		chHeaders := make(chan *p2p.MsgHeaders)
 		chBlock := make(chan *p2p.MsgBlock)
 		chProcessedBlock := make(chan *p2p.MsgBlock)
@@ -51,8 +51,9 @@ func Run(cfg Config) {
 		return node.NewServerPeer(cfg.Network, handlersManager, peerSync, nmrw, peer, outgoingMsgs, err, msgHeaders, msgBlocks)
 	}
 
+	hm := p2p.NewHandshakeManager()
 	peerErr := make(chan node.PeerErr)
-	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr, syncCompleted, cfg.GetNextPeerConnMngWait)
+	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr, syncCompleted, hm, cfg.GetNextPeerConnMngWait)
 	if err != nil {
 		log.Fatalf("failed to initialize the Node: %s", err)
 	}
