@@ -75,7 +75,8 @@ func TestCreateHandshake(t *testing.T) {
 			err := tt.peerNode.start(tes)
 			require.NoError(tes, err)
 
-			actual, err := p2p.CreateOutgoingHandshake(tt.peerAddr, "mainnet", "test-agent")
+			hm := p2p.NewHandshakeManager()
+			actual, err := hm.CreateOutgoingHandshake(tt.peerAddr, "mainnet", "test-agent")
 
 			tt.expected.Peer.Connection = actual.Peer.Connection
 			require.Equal(tes, tt.expected, actual)

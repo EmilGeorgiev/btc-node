@@ -1,6 +1,8 @@
 package sync
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
@@ -12,6 +14,13 @@ var genesisBlockHash = [32]byte{
 	0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
 	0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 }
+
+//var genesisBlockPrevHash = [32]byte{
+//	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//}
 
 type HeadersRequester struct {
 	network         string
@@ -51,12 +60,16 @@ func (cs HeadersRequester) RequestHeadersFromLastBlock() error {
 	}
 
 	fmt.Println("block hash:", blockHash)
+	fmt.Println("cs.network:", cs.network)
 	gh, err := p2p.NewMsgGetHeader(cs.network, 1, blockHash, [32]byte{0})
 	if err != nil {
 		return errors.Join(ErrFailedToCreateMsgGetHeaders, err)
 	}
 	fmt.Println("send mg with getheadera")
-	cs.expectedHashes <- block.GetHash()
+
+	buf := bytes.NewBuffer([]byte{})
+	binary.Write(buf, binary.BigEndian, genesisBlockHash)
+	cs.expectedHashes <- [32]byte(buf.Bytes())
 	cs.outgoingMsgs <- gh
 	return nil
 }

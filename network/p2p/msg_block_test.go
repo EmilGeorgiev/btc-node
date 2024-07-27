@@ -42,6 +42,7 @@ func TestMsgBlock_Unmarshal(t *testing.T) {
 	buf := bytes.NewBuffer(b)
 	err := binary.NewDecoder(buf).Decode(&block)
 
+	fmt.Println(block.GetHash())
 	require.NoError(t, err)
 	//expect := p2p.MsgBlock{
 	//	BlockHeader:  p2p.BlockHeader{},

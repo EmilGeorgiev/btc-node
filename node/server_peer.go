@@ -147,10 +147,12 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 		pong, _ := p2p.NewPongMsg("mainnet", pp.Nonce)
 		sp.outgoingMsgs <- pong
 	case *p2p.MsgHeaders:
+		fmt.Println("TUKTUKTUKTUKTUKTUKTUK")
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
+		fmt.Println("AFTERAFTERAFYER")
 	case *p2p.MsgBlock:
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:
-		//log.Printf("missing handler for msg: %#v\n", msg)
+		log.Printf("missing handler for msg: %#v\n", msg)
 	}
 }

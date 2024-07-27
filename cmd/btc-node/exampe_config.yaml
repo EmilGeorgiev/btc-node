@@ -5,6 +5,8 @@ peeraddrs:
 #    port: 8333
   - ip: "87.120.8.239" # 70016
     port: 8333
+#  - ip: "87.121.52.96"
+#    port: 20008
 network: "mainnet"
 useragent: "btc-node"
 
