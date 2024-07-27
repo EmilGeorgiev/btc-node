@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/sha256"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
@@ -16,11 +17,12 @@ type MsgHeadersHandler struct {
 	syncCompleted       chan<- struct{}
 	stop                chan struct{}
 	done                chan struct{}
+	isStarted           atomic.Bool
 }
 
 func NewMsgHeaderHandler(n string, out chan<- *p2p.Message, h <-chan *p2p.MsgHeaders,
-	expectedBlockHashes <-chan [32]byte, sf chan struct{}) MsgHeadersHandler {
-	return MsgHeadersHandler{
+	expectedBlockHashes <-chan [32]byte, sf chan struct{}) *MsgHeadersHandler {
+	return &MsgHeadersHandler{
 		network:             n,
 		outgoingMsgs:        out,
 		headers:             h,
@@ -31,12 +33,19 @@ func NewMsgHeaderHandler(n string, out chan<- *p2p.Message, h <-chan *p2p.MsgHea
 	}
 }
 
-func (mh MsgHeadersHandler) Start() {
+func (mh *MsgHeadersHandler) Start() {
+	if mh.isStarted.Load() {
+		return
+	}
+	mh.isStarted.Store(true)
 	go mh.handleHeaders()
 }
 
-func (mh MsgHeadersHandler) Stop() {
-	close(mh.stop)
+func (mh *MsgHeadersHandler) Stop() {
+	if !mh.isStarted.Load() {
+		return
+	}
+	mh.stop <- struct{}{}
 	<-mh.done
 }
 
@@ -45,20 +54,16 @@ type HeadersFromPeer struct {
 	PeerAddr string
 }
 
-func (mh MsgHeadersHandler) handleHeaders() {
+func (mh *MsgHeadersHandler) handleHeaders() {
 	fmt.Println("START HEADERS HANDLER")
 	var expectPrevBlockHash = [32]byte{}
 	for {
 		select {
 		case <-mh.stop:
-			close(mh.done)
+			mh.done <- struct{}{}
 			return
 		case expectPrevBlockHash = <-mh.expectedBlockHashes:
-			fmt.Println("expect received block hashes")
 		case msgH := <-mh.headers: // handle MsgHeaders
-			fmt.Println("YESSSSSSSSSSSSSSSSSSSSSSSS")
-			fmt.Println("YESSSSSSSSSSSSSSSSSSSSSSSS")
-			fmt.Println("YESSSSSSSSSSSSSSSSSSSSSSSS")
 			headers := msgH.BlockHeaders
 			if len(headers) == 0 {
 				mh.syncCompleted <- struct{}{}
@@ -79,9 +84,8 @@ func (mh MsgHeadersHandler) handleHeaders() {
 
 			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}
 			msg, _ := p2p.NewMessage(p2p.CmdGetdata, mh.network, msgGetdata)
-			fmt.Println("send put data")
+			fmt.Println("send get data with ", msgGetdata.Count)
 			mh.outgoingMsgs <- msg
-			fmt.Println("after channel get data")
 		}
 	}
 }

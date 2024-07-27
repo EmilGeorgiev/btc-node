@@ -2,10 +2,8 @@ package network
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"time"
 
@@ -29,23 +27,16 @@ func NewMessageReadWriter(rTimeout, wTimeout time.Duration) MessageReadWriter {
 
 func (ml MessageReadWriter) ReadMessage(conn net.Conn) (interface{}, error) {
 	tmp := make([]byte, p2p.MsgHeaderLength)
-	for {
-		conn.SetReadDeadline(time.Now().Add(ml.readConnTimeout))
-		bn, err := conn.Read(tmp)
-		if err != nil {
-			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				log.Println("timeout read")
-				continue
-			}
-			return nil, err
-		}
-		return ml.handleMessage(tmp[:bn], conn)
+	conn.SetReadDeadline(time.Now().Add(ml.readConnTimeout))
+	bn, err := conn.Read(tmp)
+	if err != nil {
+		return nil, err
 	}
+	return ml.handleMessage(tmp[:bn], conn)
 }
 
 func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (interface{}, error) {
-	log.Printf("received msg with header: %x\n", headerRaw)
+	//log.Printf("received msg with header: %x\n", headerRaw)
 	var msgHeader p2p.MessageHeader
 	if err := binary.NewDecoder(bytes.NewReader(headerRaw)).Decode(&msgHeader); err != nil {
 		return nil, err
@@ -82,7 +73,7 @@ func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (inte
 }
 
 func (ml MessageReadWriter) decodeMessage(payload []byte, command string) (interface{}, error) {
-	fmt.Printf("received message: %s\n", command)
+	//fmt.Printf("received message: %s\n", command)
 	buf := bytes.NewBuffer(payload)
 
 	switch command {
@@ -131,17 +122,7 @@ func (ml MessageReadWriter) WriteMessage(msg *p2p.Message, conn net.Conn) error 
 		return fmt.Errorf("failed to marshal outgoing message: %s", msg.MessageHeader.CommandString())
 	}
 
-	for {
-		conn.SetWriteDeadline(time.Now().Add(ml.writeConnTimeout))
-		if _, err = conn.Write(rawMsg); err != nil {
-			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				log.Println("timeout write")
-				continue
-			}
-
-			return fmt.Errorf("receive an error while sending msg: %s to peer", msg.MessageHeader.CommandString())
-		}
-		return nil
-	}
+	conn.SetWriteDeadline(time.Now().Add(ml.writeConnTimeout))
+	_, err = conn.Write(rawMsg)
+	return err
 }

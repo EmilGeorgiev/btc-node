@@ -6,18 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+	time "time"
 
 	"github.com/EmilGeorgiev/btc-node/common"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
-
-//var genesisBlockHash = [32]byte{
-//	0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
-//	0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
-//	0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
-//	0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
-//}
 
 type Node struct {
 	newPeerConnectionMng   func(p2p.Peer, chan PeerErr) PeerConnectionManager
@@ -62,6 +55,7 @@ func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) P
 }
 
 func (n *Node) Start() {
+	log.Println("Start Node.")
 	if len(n.peerAddrs) == 0 {
 		log.Println("At least one peer address should be provided. Stop the node")
 		return
@@ -79,6 +73,7 @@ func (n *Node) Start() {
 }
 
 func (n *Node) Stop() {
+	log.Println("Stop Node.")
 	close(n.stop)
 	<-n.doneErrorListener // listen for errors
 	<-n.doneSync          // listen for sync
@@ -99,6 +94,7 @@ func (n *Node) reconnectPeer(addr common.Addr) {
 	for {
 		select {
 		case <-n.stop:
+			log.Println("Stop reconnect logic")
 			return
 		case <-timer.C:
 			if err := n.connectToPeer(addr); err == nil {
@@ -127,10 +123,11 @@ func (n *Node) connectToPeer(addr common.Addr) error {
 }
 
 func (n *Node) listenForPeerErrors() {
+	log.Println("Start Node's listener for peer error.")
 	for {
 		select {
 		case <-n.stop:
-			log.Println("stop goroutine that listen for peer errors.")
+			log.Println("Stop Node's listener for peer error.")
 			n.doneErrorListener <- struct{}{}
 			return
 		case peerErr := <-n.errors:
@@ -166,75 +163,83 @@ func (n *Node) listenForPeerErrors() {
 	}
 }
 
-func (n *Node) getNextPeerConnMngForSync(currentIndex int) (PeerConnectionManager, int) {
-	tick := time.Tick(n.getNextPeerConnMngWait)
-	for {
-		select {
-		case <-n.stop:
-			return nil, 0
-		case <-tick:
-			currentIndex++
-			if currentIndex >= len(n.peerAddrs) {
-				currentIndex = 0 // reset the index and start from beginning of the list
-			}
-
-			// check for available PeerConnectors to the end of the slice.
-			for i := currentIndex; i < len(n.peerAddrs); i++ {
-				addr := n.peerAddrs[i]
-				v, ok := n.serverPeer.Load(addr.String())
-				if ok {
-					newPeerConnMng := v.(PeerConnectionManager)
-					return newPeerConnMng, i
-				}
-			}
-
-			// check for available PeerConnectors to from the beginning of the slice .
-			for i := 0; i < len(n.peerAddrs); i++ {
-				addr := n.peerAddrs[i]
-				v, ok := n.serverPeer.Load(addr.String())
-				if ok {
-					newPeerConnMng := v.(PeerConnectionManager)
-					return newPeerConnMng, i
-				}
-			}
-		}
-	}
-}
+//func (n *Node) getNextPeerConnMngForSync() PeerConnectionManager {
+//seconds := 1
+//tick := time.NewTimer(seconds*time.Second)
+//var pcm PeerConnectionManager
+//
+//for {
+//	select {
+//	case <-n.stop:
+//		return nil
+//	case <-tick:
+//		pcm = nil
+//
+//	}
+//}
+//}
 
 func (n *Node) syncPeers() {
-	log.Println("Sync with peersssssss")
-	var currentPeerConnMng PeerConnectionManager
-	currentIndex := -1
-Loop:
+	log.Println("Start Node's sync peer logic.")
+	var pcm PeerConnectionManager
 	for {
-		log.Println("check for available ServerPeers")
-		currentPeerConnMng, currentIndex = n.getNextPeerConnMngForSync(currentIndex)
-		if currentPeerConnMng == nil {
-			// this means that the method Stop is alled
+		n.serverPeer.Range(func(key, value any) bool {
+			pcm = value.(PeerConnectionManager)
+			return false
+		})
+		if pcm == nil {
+			continue
+		}
+		pcm.Sync()
+		select {
+		case <-n.stop:
+			log.Println("Stop Node's sync peer logic.")
+			if pcm != nil {
+				pcm.StopSync()
+			}
 			n.doneSync <- struct{}{}
 			return
-		}
-		log.Println("NODE SYNC PEER: start SYNC. call peerconnmanager")
-		currentPeerConnMng.Sync()
-		for {
-			select {
-			case <-n.stop:
-				log.Println("stop goroutine that manage Sync peers.")
-				currentPeerConnMng.StopSync()
-				n.doneSync <- struct{}{}
-				return
-			case peerErr := <-n.notifySyncForError:
-				if currentPeerConnMng.GetPeerAddr() == peerErr.Peer.Address {
-					log.Println("stop syncing with peer")
-					currentPeerConnMng.StopSync()
-					// if current peer to ehih w sync has error we continue to the next one
-					continue Loop
-				}
-			case <-n.syncCompleted:
-				fmt.Println("sync completed")
-				currentPeerConnMng.StopSync()
-				continue Loop
+		case peerErr := <-n.notifySyncForError:
+			if peerErr.Peer.Address == pcm.GetPeerAddr() {
+				pcm.StopSync()
 			}
+		case <-n.syncCompleted:
+
 		}
 	}
+	//	log.Println("Sync with peersssssss")
+	//	var currentPeerConnMng PeerConnectionManager
+	//	currentIndex := -1
+	//Loop:
+	//	for {
+	//		log.Println("check for available ServerPeers")
+	//		currentPeerConnMng, currentIndex = n.getNextPeerConnMngForSync(currentIndex)
+	//		if currentPeerConnMng == nil {
+	//			// this means that the method Stop is alled
+	//			n.doneSync <- struct{}{}
+	//			return
+	//		}
+	//		log.Println("NODE SYNC PEER: start SYNC. call peerconnmanager")
+	//		currentPeerConnMng.Sync()
+	//		for {
+	//			select {
+	//			case <-n.stop:
+	//				log.Println("stop goroutine that manage Sync peers.")
+	//				currentPeerConnMng.StopSync()
+	//				n.doneSync <- struct{}{}
+	//				return
+	//			case peerErr := <-n.notifySyncForError:
+	//				if currentPeerConnMng.GetPeerAddr() == peerErr.Peer.Address {
+	//					log.Println("stop syncing with peer")
+	//					currentPeerConnMng.StopSync()
+	//					// if current peer to ehih w sync has error we continue to the next one
+	//					continue Loop
+	//				}
+	//			case <-n.syncCompleted:
+	//				fmt.Println("sync completed")
+	//				currentPeerConnMng.StopSync()
+	//				continue Loop
+	//			}
+	//		}
+	//	}
 }

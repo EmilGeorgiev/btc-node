@@ -18,6 +18,7 @@ type ServerPeer struct {
 	outgoingMsgs          chan *p2p.Message
 	errors                chan<- PeerErr
 	isStarted             atomic.Bool
+	isSyncStarted         atomic.Bool
 	network               string
 
 	msgHeaders chan<- *p2p.MsgHeaders
@@ -59,15 +60,25 @@ func (sp *ServerPeer) Sync() {
 		log.Println("server peer not started")
 		return
 	}
+	if sp.isSyncStarted.Load() {
+		return
+	}
+	sp.isSyncStarted.Store(true)
 	sp.peerSync.Start()
 }
 
 func (sp *ServerPeer) StopSync() {
+	if !sp.isSyncStarted.Load() {
+		return
+	}
+	sp.isSyncStarted.Store(false)
 	sp.peerSync.Stop()
 }
 
 func (sp *ServerPeer) Stop() {
-	//sp.peerSync.Stop()
+	if !sp.isStarted.Load() {
+		return
+	}
 	sp.msgHandlersManager.Stop()
 	close(sp.stop)
 	<-sp.done // waiting for the goroutine that read from the conn to stop
@@ -149,9 +160,7 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgHeaders:
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
 	case *p2p.MsgBlock:
-		fmt.Println("Sed it ot th channel for blockssssssssssss")
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
-		fmt.Println("After send it to the channle blockssssssssssss")
 	default:
 		log.Printf("missing handler for msg: %#v\n", msg)
 	}

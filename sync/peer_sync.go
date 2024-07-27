@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"fmt"
 	"log"
 	"sync/atomic"
 	"time"
@@ -57,8 +56,7 @@ func (cs *PeerSync) start() {
 			log.Println("stop chain sync iterations")
 			cs.done <- struct{}{}
 			return
-		case block := <-cs.processedBlocks:
-			fmt.Println("PeerSync receive notification for processed block:", block.PrevBlockHash)
+		case <-cs.processedBlocks:
 			timer.Reset(cs.syncWait)
 		case <-timer.C:
 			log.Println("Start new chain sync iteration.")

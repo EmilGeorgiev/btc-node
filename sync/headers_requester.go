@@ -1,8 +1,6 @@
 package sync
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
@@ -57,19 +55,17 @@ func (cs HeadersRequester) RequestHeadersFromLastBlock() error {
 		//return errors.Join(ErrFailedToGetLastBlock, err)
 	} else {
 		blockHash = block.GetHash()
+
 	}
 
-	fmt.Println("block hash:", blockHash)
-	fmt.Println("cs.network:", cs.network)
 	gh, err := p2p.NewMsgGetHeader(cs.network, 1, blockHash, [32]byte{0})
 	if err != nil {
 		return errors.Join(ErrFailedToCreateMsgGetHeaders, err)
 	}
-	fmt.Println("send mg with getheadera")
 
-	buf := bytes.NewBuffer([]byte{})
-	binary.Write(buf, binary.BigEndian, genesisBlockHash)
-	cs.expectedHashes <- [32]byte(buf.Bytes())
+	//buf := bytes.NewBuffer([]byte{})
+	//binary.Write(buf, binary.BigEndian, genesisBlockHash)
+	cs.expectedHashes <- blockHash
 	cs.outgoingMsgs <- gh
 	return nil
 }

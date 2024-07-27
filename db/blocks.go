@@ -71,7 +71,6 @@ func (db *BlocksRepo) GetLast() (p2p.MsgBlock, error) {
 			return sync.ErrNotFound
 		}
 
-		fmt.Println("DB dataaaaaaa, ", data)
 		return json.Unmarshal(data, &block)
 	})
 	return block, err
