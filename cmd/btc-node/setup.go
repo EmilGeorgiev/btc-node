@@ -41,7 +41,7 @@ func Run(cfg Config) {
 
 		handlersManager := node.NewMessageHandlersManager(msgHandlers)
 		expectedHeaders := make(chan [32]byte)
-		headersRequester := sync.NewHeadersRequester("network", blockRepo, outgoingMsgs, expectedHeaders)
+		headersRequester := sync.NewHeadersRequester(cfg.Network, blockRepo, outgoingMsgs, expectedHeaders)
 
 		processedBlocks := make(chan p2p.MsgBlock)
 		peerSync := sync.NewPeerSync(headersRequester, cfg.SyncWait, processedBlocks)

@@ -40,6 +40,9 @@ func (cs *PeerSync) Start() {
 }
 
 func (cs *PeerSync) Stop() {
+	if !cs.isStarted.Load() {
+		return
+	}
 	cs.stop <- struct{}{}
 	<-cs.done
 	cs.isStarted.Store(false)
@@ -60,9 +63,10 @@ func (cs *PeerSync) start() {
 			timer.Reset(cs.syncWait)
 			if err := cs.headerRequester.RequestHeadersFromLastBlock(); err != nil {
 				log.Printf("failed to Requests headers from peers: %s", err)
-				log.Printf("We will tray again after %d", cs.syncWait)
+				log.Printf("We will tray again after %s", cs.syncWait)
 				continue
 			}
+			log.Println("request MSGHeader succsessfully")
 		}
 	}
 }

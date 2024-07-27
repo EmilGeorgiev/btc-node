@@ -19,6 +19,8 @@ type MessageReadWriter struct {
 }
 
 func NewMessageReadWriter(rTimeout, wTimeout time.Duration) MessageReadWriter {
+	fmt.Println("rTimeout:", rTimeout)
+	fmt.Println("wTimeout", wTimeout)
 	return MessageReadWriter{
 		readConnTimeout:  rTimeout,
 		writeConnTimeout: wTimeout,
@@ -27,8 +29,8 @@ func NewMessageReadWriter(rTimeout, wTimeout time.Duration) MessageReadWriter {
 
 func (ml MessageReadWriter) ReadMessage(conn net.Conn) (interface{}, error) {
 	tmp := make([]byte, p2p.MsgHeaderLength)
-	conn.SetReadDeadline(time.Now().Add(ml.readConnTimeout))
 	for {
+		conn.SetReadDeadline(time.Now().Add(ml.readConnTimeout))
 		bn, err := conn.Read(tmp)
 		if err != nil {
 			var netErr net.Error
@@ -60,6 +62,7 @@ func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (inte
 	lr := io.LimitReader(conn, int64(payloadLength))
 
 	for len(payload) < payloadLength {
+		conn.SetReadDeadline(time.Now().Add(ml.readConnTimeout))
 		num, err := lr.Read(tempBuffer)
 		if err != nil {
 			if err == io.EOF {
@@ -80,29 +83,46 @@ func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (inte
 
 func (ml MessageReadWriter) decodeMessage(payload []byte, command string) (interface{}, error) {
 	fmt.Printf("received message: %s\n", command)
+	buf := bytes.NewBuffer(payload)
 
-	var msg interface{}
 	switch command {
 	case "version":
-		msg = p2p.MsgVersion{}
+		msg := p2p.MsgVersion{}
+		if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
+			return nil, err
+		}
+		return &msg, nil
 	case "verack":
-		msg = p2p.MsgVerack{}
+		msg := p2p.MsgVerack{}
+		if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
+			return nil, err
+		}
+		return &msg, nil
 	case "block":
-		msg = p2p.MsgBlock{}
+		msg := p2p.MsgBlock{}
+		if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
+			return nil, err
+		}
+		return &msg, nil
 	case "ping":
-		msg = p2p.MsgPing{}
+		msg := p2p.MsgPing{}
+		if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
+			return nil, err
+		}
+		return &msg, nil
 	case "headers":
-		msg = p2p.MsgHeaders{}
+		msg := p2p.MsgHeaders{}
+		if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
+			return nil, err
+		}
+		return &msg, nil
+	case "getheaders":
+		fmt.Printf("payload is: %x\n", payload)
+		return &p2p.MsgInv{}, nil
 	default:
-		log.Println("missing logic for message with command: ", command)
+		//log.Println("missing logic for message with command: ", command)
+		return &p2p.MsgInv{}, nil
 	}
-
-	buf := bytes.NewBuffer(payload)
-	if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
-		return nil, err
-	}
-
-	return msg, nil
 }
 
 func (ml MessageReadWriter) WriteMessage(msg *p2p.Message, conn net.Conn) error {
@@ -111,12 +131,12 @@ func (ml MessageReadWriter) WriteMessage(msg *p2p.Message, conn net.Conn) error 
 		return fmt.Errorf("failed to marshal outgoing message: %s", msg.MessageHeader.CommandString())
 	}
 
-	conn.SetWriteDeadline(time.Now().Add(ml.writeConnTimeout))
 	for {
+		conn.SetWriteDeadline(time.Now().Add(ml.writeConnTimeout))
 		if _, err = conn.Write(rawMsg); err != nil {
 			var netErr net.Error
 			if errors.As(err, &netErr) && netErr.Timeout() {
-				log.Println("timeout read")
+				log.Println("timeout write")
 				continue
 			}
 

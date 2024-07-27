@@ -2,9 +2,9 @@ package db
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
+	"github.com/EmilGeorgiev/btc-node/sync"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -67,10 +67,11 @@ func (db *BlocksRepo) GetLast() (p2p.MsgBlock, error) {
 
 		bl := tx.Bucket(blockBucket)
 		data := bl.Get(lastBlockHash)
-		if b == nil {
-			return errors.New("not found")
+		if b == nil || len(data) == 0 {
+			return sync.ErrNotFound
 		}
 
+		fmt.Println("DB dataaaaaaa, ", data)
 		return json.Unmarshal(data, &block)
 	})
 	return block, err

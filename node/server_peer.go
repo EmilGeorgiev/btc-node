@@ -118,8 +118,10 @@ func (sp *ServerPeer) handOutgoingMsgs() {
 		case <-sp.stop:
 			log.Println("Stop goroutine that handle outgoing msg for peers: ", addr)
 			sp.done <- struct{}{}
+			fmt.Println("after stop Stop goroutine that handle outgoing msg for peers:")
 			return
 		case msg := <-sp.outgoingMsgs:
+			fmt.Println("send outgoin message:", msg.MessageHeader.CommandString())
 			err := sp.networkMessageHandler.WriteMessage(msg, conn)
 			if err != nil {
 				var netErr net.Error
@@ -141,7 +143,7 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgVerack:
 	case *p2p.MsgWtxidrelay:
 	case *p2p.MsgPing:
-		pp := msg.(p2p.MsgPing)
+		pp := msg.(*p2p.MsgPing)
 		pong, _ := p2p.NewPongMsg("mainnet", pp.Nonce)
 		sp.outgoingMsgs <- pong
 	case *p2p.MsgHeaders:
@@ -149,6 +151,6 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgBlock:
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:
-		log.Printf("missing handler for msg: %#v\n", msg)
+		//log.Printf("missing handler for msg: %#v\n", msg)
 	}
 }
