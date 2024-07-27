@@ -42,7 +42,7 @@ func (mh MsgBlockHandler) handleMsgBlock() {
 		select {
 		case <-mh.stop:
 			log.Println("stop MsgBlockHandler")
-			close(mh.done)
+			mh.done <- struct{}{}
 			return
 		case block := <-mh.blocks:
 			if err := mh.blockValidator.Validate(block); err != nil {
