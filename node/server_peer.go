@@ -55,6 +55,10 @@ func (sp *ServerPeer) Start() {
 }
 
 func (sp *ServerPeer) Sync() {
+	if !sp.isStarted.Load() {
+		log.Println("server peer not started")
+		return
+	}
 	sp.peerSync.Start()
 }
 
@@ -63,7 +67,7 @@ func (sp *ServerPeer) StopSync() {
 }
 
 func (sp *ServerPeer) Stop() {
-	sp.peerSync.Stop()
+	//sp.peerSync.Stop()
 	sp.msgHandlersManager.Stop()
 	close(sp.stop)
 	<-sp.done // waiting for the goroutine that read from the conn to stop
@@ -93,7 +97,6 @@ func (sp *ServerPeer) handleIncomingMsgs() {
 			if err != nil {
 				var netErr net.Error
 				if errors.As(err, &netErr) && netErr.Timeout() {
-					log.Println("timeout read")
 					continue
 				}
 				sp.errors <- PeerErr{
@@ -121,7 +124,6 @@ func (sp *ServerPeer) handOutgoingMsgs() {
 			if err != nil {
 				var netErr net.Error
 				if errors.As(err, &netErr) && netErr.Timeout() {
-					log.Println("timeout read")
 					continue
 				}
 				sp.errors <- PeerErr{
@@ -135,16 +137,16 @@ func (sp *ServerPeer) handOutgoingMsgs() {
 
 func (sp *ServerPeer) handleMessage(msg interface{}) {
 	switch msg.(type) {
-	case p2p.MsgVersion:
-	case p2p.MsgVerack:
-	case p2p.MsgWtxidrelay:
-	case p2p.MsgPing:
+	case *p2p.MsgVersion:
+	case *p2p.MsgVerack:
+	case *p2p.MsgWtxidrelay:
+	case *p2p.MsgPing:
 		pp := msg.(p2p.MsgPing)
 		pong, _ := p2p.NewPongMsg("mainnet", pp.Nonce)
 		sp.outgoingMsgs <- pong
-	case p2p.MsgHeaders:
+	case *p2p.MsgHeaders:
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
-	case p2p.MsgBlock:
+	case *p2p.MsgBlock:
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:
 		log.Printf("missing handler for msg: %#v\n", msg)
