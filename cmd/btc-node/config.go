@@ -14,15 +14,16 @@ const (
 )
 
 type Config struct {
-	PeerAddrs    []common.Addr
-	Network      string
-	UserAgent    string
-	DBPath       string
-	PingInterval time.Duration
-	PingTimeout  time.Duration
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	SyncWait     time.Duration
+	PeerAddrs              []common.Addr
+	Network                string
+	UserAgent              string
+	DBPath                 string
+	PingInterval           time.Duration
+	PingTimeout            time.Duration
+	ReadTimeout            time.Duration
+	WriteTimeout           time.Duration
+	SyncWait               time.Duration
+	GetNextPeerConnMngWait time.Duration
 }
 
 func (c Config) Validate() error {

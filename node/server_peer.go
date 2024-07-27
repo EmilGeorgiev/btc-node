@@ -10,11 +10,6 @@ import (
 	"sync/atomic"
 )
 
-type NetworkMessageHandler interface {
-	ReadMessage(conn net.Conn) (interface{}, error)
-	WriteMessage(msg *p2p.Message, conn net.Conn) error
-}
-
 type ServerPeer struct {
 	msgHandlersManager    StartStop
 	peerSync              StartStop
@@ -76,8 +71,8 @@ func (sp *ServerPeer) Stop() {
 }
 
 type PeerErr struct {
-	peer p2p.Peer
-	err  error
+	Peer p2p.Peer
+	Err  error
 }
 
 func (sp *ServerPeer) handleIncomingMsgs() {
@@ -98,8 +93,8 @@ func (sp *ServerPeer) handleIncomingMsgs() {
 					continue
 				}
 				sp.errors <- PeerErr{
-					peer: sp.peer,
-					err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
+					Peer: sp.peer,
+					Err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
 				}
 				continue
 			}
@@ -126,8 +121,8 @@ func (sp *ServerPeer) handOutgoingMsgs() {
 					continue
 				}
 				sp.errors <- PeerErr{
-					peer: sp.peer,
-					err:  errors2.NewE(fmt.Sprintf("receive an error while write to peer: %s.", addr), err, true),
+					Peer: sp.peer,
+					Err:  errors2.NewE(fmt.Sprintf("receive an error while write to peer: %s.", addr), err, true),
 				}
 			}
 		}

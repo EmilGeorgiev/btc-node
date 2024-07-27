@@ -1,10 +1,5 @@
 package node
 
-type StartStop interface {
-	Start()
-	Stop()
-}
-
 type MessageHandlersManager struct {
 	msgHandlers []StartStop
 }

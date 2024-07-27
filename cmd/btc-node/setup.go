@@ -25,8 +25,8 @@ func Run(cfg Config) {
 		log.Fatalf("can't initialize Block repository: %s", err)
 	}
 
-	syncCompleted := make(chan string)
-	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) *node.ServerPeer {
+	syncCompleted := make(chan struct{})
+	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) node.StartStop {
 		chHeaders := make(chan *p2p.MsgHeaders)
 		chBlock := make(chan *p2p.MsgBlock)
 		chProcessedBlock := make(chan *p2p.MsgBlock)
@@ -52,7 +52,7 @@ func Run(cfg Config) {
 	}
 
 	peerErr := make(chan node.PeerErr)
-	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr)
+	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr, syncCompleted, cfg.GetNextPeerConnMngWait)
 	if err != nil {
 		log.Fatalf("failed to initialize the Node: %s", err)
 	}
