@@ -26,7 +26,7 @@ func TestBlockRepo_SaveAndGetBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	hash := block.GetHash()
-	actual, err := repo.GetBlock(hash[:])
+	actual, err := repo.Get(hash)
 	require.NoError(t, err)
 
 	require.Equal(t, block, actual)
@@ -49,9 +49,9 @@ func TestBlockRepo_GetLastBlockWhenSaveOneBlock(t *testing.T) {
 	err = repo.Save(block)
 	require.NoError(t, err)
 
-	hash, err := repo.GetLastBlockHash()
+	actual, err := repo.GetLast()
 	require.NoError(t, err)
-	require.Equal(t, block.GetHash(), hash)
+	require.Equal(t, block, actual)
 }
 
 func TestBlockRepo_GetLastBlockWhenSaveMultipleBlocks(t *testing.T) {
@@ -80,9 +80,9 @@ func TestBlockRepo_GetLastBlockWhenSaveMultipleBlocks(t *testing.T) {
 	err = repo.Save(block4)
 	require.NoError(t, err)
 
-	hash, err := repo.GetLastBlockHash()
+	actual, err := repo.GetLast()
 	require.NoError(t, err)
-	require.Equal(t, block4.GetHash(), hash)
+	require.Equal(t, block4, actual)
 }
 
 func newMsgBlock(prevBlockHash [32]byte) p2p.MsgBlock {

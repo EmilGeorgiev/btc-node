@@ -1,10 +1,17 @@
 peeraddrs:
-  - ip: "94.156.128.153" # 70015
-    port: 8333
+#  - ip: "94.156.128.153" # 70015
+#    port: 8333
 #  - ip: "185.148.147.47"  # 70015
 #    port: 8333
   - ip: "87.120.8.239" # 70016
     port: 8333
 network: "mainnet"
 useragent: "btc-node"
-readtimeout: "30s"
+
+dbpath: "/tmp/my.db"
+pinginterval: "3600s"
+pingtimeout:  "60s"
+readtimeout: "5s"
+writetimeout: "5s"
+syncwait: "60s"
+getnextpeerconnmngwait: "60s"
