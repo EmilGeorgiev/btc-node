@@ -162,6 +162,6 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgBlock:
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:
-		log.Printf("missing handler for msg: %#v\n", msg)
+		//log.Printf("missing handler for msg: %#v\n", msg)
 	}
 }

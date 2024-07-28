@@ -58,6 +58,6 @@ func (mb *MsgBlock) UnmarshalBinary(r io.Reader) error {
 
 func (mb *MsgBlock) GetHash() [32]byte {
 	b, _ := binary.Marshal(mb.BlockHeader)
-	firstHash := sha256.Sum256(b)
+	firstHash := sha256.Sum256(b[:80])
 	return sha256.Sum256(firstHash[:])
 }

@@ -99,3 +99,12 @@ func newMsgBlock(prevBlockHash [32]byte) p2p.MsgBlock {
 		},
 	}
 }
+
+func reverseBytes(data []byte) []byte {
+	length := len(data)
+	reversed := make([]byte, length)
+	for i := 0; i < length; i++ {
+		reversed[i] = data[length-1-i]
+	}
+	return reversed
+}

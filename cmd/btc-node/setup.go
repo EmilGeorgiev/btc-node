@@ -29,22 +29,23 @@ func Run(cfg Config) {
 	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) node.PeerConnectionManager {
 		chHeaders := make(chan *p2p.MsgHeaders)
 		chBlock := make(chan *p2p.MsgBlock)
-		chProcessedBlock := make(chan *p2p.MsgBlock)
-		expectedHeaders := make(chan [32]byte)
+		chProcessedHeaders := make(chan struct{})
+		expectedStartFromHash := make(chan [32]byte)
 		outgoingMsgs := make(chan *p2p.Message)
+		notifyForExpectedBlockHeaders := make(chan []p2p.BlockHeader)
 
 		blockValidator := node.NewBlockValidator()
 		msgHandlers := []node.StartStop{
-			node.NewMsgHeaderHandler(cfg.Network, outgoingMsgs, chHeaders, expectedHeaders, syncCompleted),
-			node.NewMsgBlockHandler(blockRepo, blockValidator, chBlock, chProcessedBlock),
+			node.NewMsgHeaderHandler(cfg.Network, outgoingMsgs, chHeaders, expectedStartFromHash, syncCompleted, notifyForExpectedBlockHeaders),
+			node.NewMsgBlockHandler(blockRepo, blockValidator, chBlock, chProcessedHeaders, notifyForExpectedBlockHeaders),
 		}
 
 		handlersManager := node.NewMessageHandlersManager(msgHandlers)
 
-		headersRequester := sync.NewHeadersRequester(cfg.Network, blockRepo, outgoingMsgs, expectedHeaders)
+		headersRequester := sync.NewHeadersRequester(cfg.Network, blockRepo, outgoingMsgs, expectedStartFromHash)
 
 		//processedBlocks := make(chan p2p.MsgBlock)
-		peerSync := sync.NewPeerSync(headersRequester, cfg.SyncWait, chProcessedBlock)
+		peerSync := sync.NewPeerSync(headersRequester, cfg.SyncWait, chProcessedHeaders)
 		nmrw := network.NewMessageReadWriter(cfg.ReadTimeout, cfg.WriteTimeout)
 		//msgHeaders := make(chan *p2p.MsgHeaders)
 		//msgBlocks := make(chan *p2p.MsgBlock)

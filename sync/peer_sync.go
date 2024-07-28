@@ -4,25 +4,23 @@ import (
 	"log"
 	"sync/atomic"
 	"time"
-
-	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
 
 type PeerSync struct {
-	headerRequester HeaderRequester
-	syncWait        time.Duration
-	processedBlocks <-chan *p2p.MsgBlock
+	headerRequester         HeaderRequester
+	syncWait                time.Duration
+	prevHeadersAreProcessed <-chan struct{}
 
 	isStarted atomic.Bool
 	stop      chan struct{}
 	done      chan struct{}
 }
 
-func NewPeerSync(hr HeaderRequester, d time.Duration, pb <-chan *p2p.MsgBlock) *PeerSync {
+func NewPeerSync(hr HeaderRequester, d time.Duration, ph <-chan struct{}) *PeerSync {
 	return &PeerSync{
-		headerRequester: hr,
-		syncWait:        d,
-		processedBlocks: pb,
+		headerRequester:         hr,
+		syncWait:                d,
+		prevHeadersAreProcessed: ph,
 
 		stop: make(chan struct{}),
 		done: make(chan struct{}, 1),
@@ -49,24 +47,29 @@ func (cs *PeerSync) Stop() {
 }
 
 func (cs *PeerSync) start() {
-	timer := time.NewTimer(0 * time.Nanosecond)
+	_ = cs.headerRequester.RequestHeadersFromLastBlock()
+	timer := time.NewTimer(30 * time.Second)
 	for {
 		select {
 		case <-cs.stop:
 			log.Println("stop chain sync iterations")
 			cs.done <- struct{}{}
 			return
-		case <-cs.processedBlocks:
+		case <-cs.prevHeadersAreProcessed:
 			timer.Reset(cs.syncWait)
+			cs.requestHeaders()
 		case <-timer.C:
-			log.Println("Start new chain sync iteration.")
 			timer.Reset(cs.syncWait)
-			if err := cs.headerRequester.RequestHeadersFromLastBlock(); err != nil {
-				log.Printf("failed to Requests headers from peers: %s", err)
-				log.Printf("We will tray again after %s", cs.syncWait)
-				continue
-			}
-			log.Println("request MSGHeader succsessfully")
+			cs.requestHeaders()
 		}
 	}
+}
+
+func (cs *PeerSync) requestHeaders() {
+	log.Println("Request new headers from the last block that the node has.")
+	if err := cs.headerRequester.RequestHeadersFromLastBlock(); err != nil {
+		log.Printf("failed to Requests headers from peers: %s", err)
+		log.Printf("We will tray again after %s", cs.syncWait)
+	}
+	log.Println("request MSG Headers successfully.")
 }

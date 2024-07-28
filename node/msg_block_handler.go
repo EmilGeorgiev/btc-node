@@ -9,24 +9,27 @@ import (
 )
 
 type MsgBlockHandler struct {
-	blockRepository       sync.BlockRepository
-	blockValidator        sync.BlockValidator
-	stop                  chan struct{}
-	blocks                <-chan *p2p.MsgBlock
-	notifyProcessedBlocks chan<- *p2p.MsgBlock
-	done                  chan struct{}
-	isStarted             atomic.Bool
+	blockRepository        sync.BlockRepository
+	blockValidator         sync.BlockValidator
+	stop                   chan struct{}
+	blocks                 <-chan *p2p.MsgBlock
+	notifyProcessedHeaders chan<- struct{}
+	done                   chan struct{}
+	isStarted              atomic.Bool
+	expectedBlockHeaders   <-chan []p2p.BlockHeader
 }
 
-func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks <-chan *p2p.MsgBlock, processed chan<- *p2p.MsgBlock) *MsgBlockHandler {
+func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks <-chan *p2p.MsgBlock,
+	processed chan<- struct{}, expBlockHeaders <-chan []p2p.BlockHeader) *MsgBlockHandler {
 	return &MsgBlockHandler{
-		blockRepository:       br,
-		blockValidator:        bv,
-		blocks:                blocks,
-		notifyProcessedBlocks: processed,
+		blockRepository:        br,
+		blockValidator:         bv,
+		blocks:                 blocks,
+		notifyProcessedHeaders: processed,
 
-		stop: make(chan struct{}),
-		done: make(chan struct{}),
+		expectedBlockHeaders: expBlockHeaders,
+		stop:                 make(chan struct{}),
+		done:                 make(chan struct{}),
 	}
 }
 
@@ -48,16 +51,17 @@ func (mh *MsgBlockHandler) Stop() {
 }
 
 func (mh *MsgBlockHandler) handleMsgBlock() {
-	//count := 0
+	var currentBlockIndex int
+	var expectedHeaders []p2p.BlockHeader
 	for {
 		select {
 		case <-mh.stop:
 			log.Println("stop MsgBlockHandler")
 			mh.done <- struct{}{}
 			return
+		case expectedHeaders = <-mh.expectedBlockHeaders:
+			log.Println("Set expected headers")
 		case block := <-mh.blocks:
-			//count++
-			//fmt.Println("Number of recived bocks:", count)
 			if err := mh.blockValidator.Validate(block); err != nil {
 				log.Printf("block is not valid: %s", err)
 				continue
@@ -66,7 +70,13 @@ func (mh *MsgBlockHandler) handleMsgBlock() {
 				log.Println("failed to save block: ", err)
 				continue
 			}
-			mh.notifyProcessedBlocks <- block
+
+			currentBlockIndex++
+			if currentBlockIndex >= len(expectedHeaders) {
+				currentBlockIndex = 0
+				expectedHeaders = nil
+				mh.notifyProcessedHeaders <- struct{}{}
+			}
 		}
 	}
 }
