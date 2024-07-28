@@ -37,6 +37,7 @@ func (mh *MsgBlockHandler) Start() {
 	if mh.isStarted.Load() {
 		return
 	}
+	log.Println("Start MsgBlock Handler.")
 	mh.isStarted.Store(true)
 	go mh.handleMsgBlock()
 }
@@ -45,6 +46,7 @@ func (mh *MsgBlockHandler) Stop() {
 	if !mh.isStarted.Load() {
 		return
 	}
+	log.Println("Stop MsgBlock handler.")
 	mh.isStarted.Store(false)
 	mh.stop <- struct{}{}
 	<-mh.done

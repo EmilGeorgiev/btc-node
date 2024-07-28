@@ -88,7 +88,7 @@ func (n *Node) Stop() {
 }
 
 func (n *Node) reconnectPeer(addr common.Addr) {
-	fmt.Println("Reconnect to peer after 1 second: ", addr.String())
+	fmt.Println("Reconnect to peer", addr.String())
 	seconds := 1
 	timer := time.NewTimer(time.Duration(seconds) * time.Second)
 	for {
