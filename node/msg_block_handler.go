@@ -28,28 +28,37 @@ func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks 
 		notifyProcessedHeaders: processed,
 
 		expectedBlockHeaders: expBlockHeaders,
-		stop:                 make(chan struct{}),
-		done:                 make(chan struct{}),
+		stop:                 make(chan struct{}, 1000),
+		done:                 make(chan struct{}, 1000),
 	}
 }
 
 func (mh *MsgBlockHandler) Start() {
+	log.Println("START MsgBlockhandler")
 	if mh.isStarted.Load() {
+		log.Println("START MsgBlockhandler 11111111")
 		return
 	}
-	log.Println("Start MsgBlock Handler.")
+	log.Println("START MsgBlockhandler 2222222")
 	mh.isStarted.Store(true)
+	log.Println("START MsgBlockhandler 33333333")
 	go mh.handleMsgBlock()
+	log.Println("START MsgBlockhandler 4444444444")
 }
 
 func (mh *MsgBlockHandler) Stop() {
+	log.Println("Stop MsgBlockhandler")
 	if !mh.isStarted.Load() {
+		log.Println("Stop MsgBlockhandler 1111111111")
 		return
 	}
-	log.Println("Stop MsgBlock handler.")
+	log.Println("Stop MsgBlockhandler 2222222")
 	mh.isStarted.Store(false)
+	log.Println("Stop MsgBlockhandler 333333")
 	mh.stop <- struct{}{}
+	log.Println("Stop MsgBlockhandler 44444444")
 	<-mh.done
+	log.Println("Stop MsgBlockhandler 55555555555")
 }
 
 func (mh *MsgBlockHandler) handleMsgBlock() {

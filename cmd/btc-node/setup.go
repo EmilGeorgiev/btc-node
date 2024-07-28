@@ -25,14 +25,14 @@ func Run(cfg Config) {
 		log.Fatalf("can't initialize Block repository: %s", err)
 	}
 
-	syncCompleted := make(chan struct{})
-	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) node.PeerConnectionManager {
-		chHeaders := make(chan *p2p.MsgHeaders)
-		chBlock := make(chan *p2p.MsgBlock)
+	syncCompleted := make(chan struct{}, 1000)
+	newServerPeer := func(peer p2p.Peer, err chan node.PeerErr) node.StartStop {
+		chHeaders := make(chan *p2p.MsgHeaders, 1000)
+		chBlock := make(chan *p2p.MsgBlock, 1000)
 		chProcessedHeaders := make(chan struct{})
-		expectedStartFromHash := make(chan [32]byte)
-		outgoingMsgs := make(chan *p2p.Message)
-		notifyForExpectedBlockHeaders := make(chan []p2p.BlockHeader)
+		expectedStartFromHash := make(chan [32]byte, 1000)
+		outgoingMsgs := make(chan *p2p.Message, 1000)
+		notifyForExpectedBlockHeaders := make(chan []p2p.BlockHeader, 1000)
 
 		blockValidator := node.NewBlockValidator()
 		msgHandlers := []node.StartStop{
@@ -53,7 +53,7 @@ func Run(cfg Config) {
 	}
 
 	hm := p2p.NewHandshakeManager()
-	peerErr := make(chan node.PeerErr)
+	peerErr := make(chan node.PeerErr, 1000)
 	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr, syncCompleted, hm, cfg.GetNextPeerConnMngWait)
 	if err != nil {
 		log.Fatalf("failed to initialize the Node: %s", err)

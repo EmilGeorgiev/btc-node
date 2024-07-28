@@ -89,7 +89,7 @@ func (tx *MsgTx) UnmarshalBinary(r io.Reader) error {
 // TxInput represents transaction input.
 type TxInput struct {
 	PreviousOutput  OutPoint
-	ScriptLength    VarInt // TODO: Convert to var_int
+	ScriptLength    VarInt
 	SignatureScript []byte
 	Sequence        uint32
 }

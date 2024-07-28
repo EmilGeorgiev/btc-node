@@ -7,6 +7,7 @@ import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"log"
 	"net"
+	"sync"
 	"sync/atomic"
 )
 
@@ -25,7 +26,7 @@ type ServerPeer struct {
 	msgBlocks  chan<- *p2p.MsgBlock
 
 	stop chan struct{}
-	done chan struct{}
+	wg   sync.WaitGroup
 }
 
 func NewServerPeer(network string, mhm StartStop, ps StartStop, nmh NetworkMessageHandler, p p2p.Peer,
@@ -40,68 +41,88 @@ func NewServerPeer(network string, mhm StartStop, ps StartStop, nmh NetworkMessa
 		errors:                e,
 		msgHeaders:            h,
 		msgBlocks:             b,
-		stop:                  make(chan struct{}),
-		done:                  make(chan struct{}),
+		stop:                  make(chan struct{}, 1),
 	}
 }
 
 func (sp *ServerPeer) Start() {
+	log.Println("Start server peer")
 	if sp.isStarted.Load() {
 		return
 	}
+	log.Println("Start server peer 111111")
 	sp.isStarted.Store(true)
+	log.Println("Start server peer 2222222")
 	sp.msgHandlersManager.Start()
-	go sp.handleIncomingMsgs()
-	go sp.handOutgoingMsgs()
-}
-
-func (sp *ServerPeer) Sync() {
-	if !sp.isStarted.Load() {
-		log.Println("server peer not started")
-		return
-	}
-	if sp.isSyncStarted.Load() {
-		return
-	}
-	sp.isSyncStarted.Store(true)
+	log.Println("Start server peer 33333333")
+	sp.wg.Add(2)
+	go sp.handleIncomingMsgs(&sp.wg)
+	log.Println("Start server peer 4444444")
+	go sp.handOutgoingMsgs(&sp.wg)
+	log.Println("Start server peer 5555")
 	sp.peerSync.Start()
+	log.Println("Start server peer 666666")
 }
 
-func (sp *ServerPeer) StopSync() {
-	if !sp.isSyncStarted.Load() {
-		return
-	}
-	sp.isSyncStarted.Store(false)
-	sp.peerSync.Stop()
-}
+//func (sp *ServerPeer) Sync() {
+//	if !sp.isStarted.Load() {
+//		log.Println("server peer not started")
+//		return
+//	}
+//	if sp.isSyncStarted.Load() {
+//		return
+//	}
+//	sp.isSyncStarted.Store(true)
+//	sp.peerSync.Start()
+//}
+
+//func (sp *ServerPeer) StopSync() {
+//	if !sp.isSyncStarted.Load() {
+//		return
+//	}
+//	sp.isSyncStarted.Store(false)
+//	sp.peerSync.Stop()
+//}
 
 func (sp *ServerPeer) Stop() {
+	log.Println("stop server peer")
 	if !sp.isStarted.Load() {
 		return
 	}
-	sp.msgHandlersManager.Stop()
+	sp.isStarted.Store(false)
+	log.Println("stop server peer 1111111")
+	sp.peerSync.Stop()
 	close(sp.stop)
-	<-sp.done // waiting for the goroutine that read from the conn to stop
-	<-sp.done // waiting for the goroutine that write to the conn to stop
+	log.Println("stop server peer 222222")
+
+	log.Println("stop server peer 333333")
+	sp.msgHandlersManager.Stop()
+	log.Println("stop server peer 4444")
+
+	sp.wg.Wait()
+	log.Println("stop server peer 5555555")
+	err := sp.peer.Connection.Close()
+	log.Println("stop server peer 66666: ", err)
 }
 
-func (sp *ServerPeer) GetPeerAddr() string {
-	return sp.peer.Address
-}
+//func (sp *ServerPeer) GetPeerAddr() string {
+//	return sp.peer.Address
+//}
 
 type PeerErr struct {
 	Peer p2p.Peer
 	Err  error
 }
 
-func (sp *ServerPeer) handleIncomingMsgs() {
+func (sp *ServerPeer) handleIncomingMsgs(wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Println("Start gorouine that handle incomming messages")
 	conn := sp.peer.Connection
 	addr := sp.peer.Address
 	for {
 		select {
 		case <-sp.stop:
-			log.Println("Stop goroutine that handle messages from peer: ", addr)
-			sp.done <- struct{}{}
+			log.Println("Stop goroutine that handle incomming messages from peer: ", addr)
 			return
 		default:
 			msg, err := sp.networkMessageHandler.ReadMessage(conn)
@@ -110,26 +131,29 @@ func (sp *ServerPeer) handleIncomingMsgs() {
 				if errors.As(err, &netErr) && netErr.Timeout() {
 					continue
 				}
+				fmt.Println("SEND ERRRRRRORRRRRR")
 				sp.errors <- PeerErr{
 					Peer: sp.peer,
 					Err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
 				}
-				continue
+				fmt.Println("SEND ERRRRRRORRRRRR --- AFTER AFTER")
+				go sp.Stop()
+				return
 			}
 			sp.handleMessage(msg)
 		}
 	}
 }
 
-func (sp *ServerPeer) handOutgoingMsgs() {
+func (sp *ServerPeer) handOutgoingMsgs(wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Println("Start goroutine that handle outgoin messags")
 	conn := sp.peer.Connection
 	addr := sp.peer.Address
 	for {
 		select {
 		case <-sp.stop:
 			log.Println("Stop goroutine that handle outgoing msg for peers: ", addr)
-			sp.done <- struct{}{}
-			fmt.Println("after stop Stop goroutine that handle outgoing msg for peers:")
 			return
 		case msg := <-sp.outgoingMsgs:
 			fmt.Println("send outgoin message:", msg.MessageHeader.CommandString())
@@ -143,6 +167,8 @@ func (sp *ServerPeer) handOutgoingMsgs() {
 					Peer: sp.peer,
 					Err:  errors2.NewE(fmt.Sprintf("receive an error while write to peer: %s.", addr), err, true),
 				}
+				go sp.Stop()
+				return
 			}
 		}
 	}
@@ -156,9 +182,13 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgPing:
 		pp := msg.(*p2p.MsgPing)
 		pong, _ := p2p.NewPongMsg("mainnet", pp.Nonce)
+		fmt.Println("SEND outgoin msgs ping")
 		sp.outgoingMsgs <- pong
+		fmt.Println("SEND outgoin msgs ping -- AFTER")
 	case *p2p.MsgHeaders:
+		fmt.Println("Send msg headers to cahnnel")
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
+		fmt.Println("Send msg headers to cahnnel-- AFTER")
 	case *p2p.MsgBlock:
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:

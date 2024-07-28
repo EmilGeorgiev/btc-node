@@ -22,28 +22,38 @@ func NewPeerSync(hr HeaderRequester, d time.Duration, ph <-chan struct{}) *PeerS
 		syncWait:                d,
 		prevHeadersAreProcessed: ph,
 
-		stop: make(chan struct{}),
-		done: make(chan struct{}, 1),
+		stop: make(chan struct{}, 10),
+		done: make(chan struct{}, 10),
 	}
 }
 
 func (cs *PeerSync) Start() {
+	log.Println("Start PeerSync")
 	if !cs.isStarted.Load() {
+		log.Println("Start PeerSync 1111111111")
 		cs.isStarted.Store(true)
+		log.Println("Start PeerSync 22222222222")
 		go cs.start()
+		log.Println("Start PeerSync 33333333")
 		return
 	}
+	log.Println("Start PeerSync 4444444")
 	log.Println("Sync with peer is already started")
 
 }
 
 func (cs *PeerSync) Stop() {
+	log.Println("STOP PeerSync")
 	if !cs.isStarted.Load() {
 		return
 	}
+	log.Println("STOP PeerSync 111111111")
 	cs.stop <- struct{}{}
+	log.Println("STOP PeerSync 222222")
 	<-cs.done
+	log.Println("STOP PeerSync 33333333")
 	cs.isStarted.Store(false)
+	log.Println("STOP PeerSync 44444444")
 }
 
 func (cs *PeerSync) start() {
