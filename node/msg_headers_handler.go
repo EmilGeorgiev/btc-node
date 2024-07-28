@@ -81,12 +81,10 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 				mh.syncCompleted <- struct{}{}
 				continue
 			}
-			//if headers[0].PrevBlockHash != expHeadersToStartFromHash {
-			//	log.Println("headers start with unexpected hash")
-			//	log.Println("expected:", expHeadersToStartFromHash)
-			//	log.Println("actual:", headers[0].PrevBlockHash)
-			//	continue
-			//}
+
+			if !ValidateChain(msgH.BlockHeaders) {
+				continue
+			}
 
 			inv := make([]p2p.InvVector, len(headers))
 			for i := 0; i < len(msgH.BlockHeaders); i++ {
@@ -105,4 +103,21 @@ func Hash(bh p2p.BlockHeader) [32]byte {
 	b, _ := binary.Marshal(bh)
 	firstHash := sha256.Sum256(b[:80])
 	return sha256.Sum256(firstHash[:])
+}
+
+func ValidateChain(headers []p2p.BlockHeader) bool {
+	for i := 1; i < len(headers); i++ {
+		if headers[i].PrevBlockHash != Hash(headers[i-1]) {
+			log.Println("block's previous block hash is different")
+			return false
+		}
+		if !blockHashLessThanTargetDifficulty(&headers[i]) {
+			hash := Hash(headers[i])
+			log.Println("block hash is greather than target difficulty:")
+			log.Printf("Hash %x\n", p2p.Reverse(hash[:]))
+			log.Println("Bits:", headers[i].Bits)
+			return false
+		}
+	}
+	return false
 }

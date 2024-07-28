@@ -34,7 +34,7 @@ func Run(cfg Config) {
 		outgoingMsgs := make(chan *p2p.Message, 1000)
 		notifyForExpectedBlockHeaders := make(chan []p2p.BlockHeader, 1000)
 
-		blockValidator := node.NewBlockValidator()
+		blockValidator := node.NewBlockValidator(blockRepo)
 		msgHandlers := []node.StartStop{
 			node.NewMsgHeaderHandler(cfg.Network, outgoingMsgs, chHeaders, expectedStartFromHash, syncCompleted, notifyForExpectedBlockHeaders),
 			node.NewMsgBlockHandler(blockRepo, blockValidator, chBlock, chProcessedHeaders, notifyForExpectedBlockHeaders),

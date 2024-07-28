@@ -20,7 +20,7 @@ var genesisBlockHash2 = [32]byte{
 }
 
 func TestTttt(t *testing.T) {
-	fmt.Println(genesisBlockHash == genesisBlockHash2)
+	fmt.Println(genesisBlockHash2)
 }
 
 //import (

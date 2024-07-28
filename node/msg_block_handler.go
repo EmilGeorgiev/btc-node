@@ -73,10 +73,12 @@ func (mh *MsgBlockHandler) handleMsgBlock() {
 		case expectedHeaders = <-mh.expectedBlockHeaders:
 			log.Println("Set expected headers")
 		case block := <-mh.blocks:
+			log.Println("validate block")
 			if err := mh.blockValidator.Validate(block); err != nil {
 				log.Printf("block is not valid: %s", err)
 				continue
 			}
+			log.Println("save block: ", p2p.Reverse(block.PrevBlockHash[:]))
 			if err := mh.blockRepository.Save(*block); err != nil {
 				log.Println("failed to save block: ", err)
 				continue

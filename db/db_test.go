@@ -1,11 +1,28 @@
 package db
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
+
+func TestBlockRepo_Savek(t *testing.T) {
+	dbPath := "/tmp/my.db"
+	db, err := NewBoltDB(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo, err := NewBlockRepo(db.DB)
+	require.NoError(t, err)
+
+	block, err := repo.GetLast()
+	fmt.Println(err)
+	fmt.Printf("prev block hah: %x\n", block.PrevBlockHash)
+	hash := block.GetHash()
+	fmt.Printf("block hash: %x\n", p2p.Reverse(hash[:]))
+}
 
 // Test Functions
 func TestBlockRepo_SaveAndGetBlock(t *testing.T) {

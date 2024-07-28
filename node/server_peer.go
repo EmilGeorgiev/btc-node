@@ -131,12 +131,10 @@ func (sp *ServerPeer) handleIncomingMsgs(wg *sync.WaitGroup) {
 				if errors.As(err, &netErr) && netErr.Timeout() {
 					continue
 				}
-				fmt.Println("SEND ERRRRRRORRRRRR")
 				sp.errors <- PeerErr{
 					Peer: sp.peer,
 					Err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
 				}
-				fmt.Println("SEND ERRRRRRORRRRRR --- AFTER AFTER")
 				go sp.Stop()
 				return
 			}
@@ -182,13 +180,9 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgPing:
 		pp := msg.(*p2p.MsgPing)
 		pong, _ := p2p.NewPongMsg("mainnet", pp.Nonce)
-		fmt.Println("SEND outgoin msgs ping")
 		sp.outgoingMsgs <- pong
-		fmt.Println("SEND outgoin msgs ping -- AFTER")
 	case *p2p.MsgHeaders:
-		fmt.Println("Send msg headers to cahnnel")
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
-		fmt.Println("Send msg headers to cahnnel-- AFTER")
 	case *p2p.MsgBlock:
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:

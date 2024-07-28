@@ -42,6 +42,8 @@ func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (inte
 		return nil, err
 	}
 
+	//log.Printf("read msg %s with lenght: %d and prevblock raw header: %x\n", msgHeader.CommandString(), msgHeader.Length, headerRaw)
+
 	payloadLength := int(msgHeader.Length)
 	payload := make([]byte, 0, payloadLength)
 	tmp := 1024
@@ -69,6 +71,7 @@ func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (inte
 		return nil, fmt.Errorf("Expected to read %d bytes, but only read %d\n", payloadLength, len(payload))
 	}
 
+	//fmt.Printf("payload for msg with header: %x ISS: %x'n", headerRaw, payload)
 	return ml.decodeMessage(payload, msgHeader.CommandString())
 }
 
@@ -108,7 +111,7 @@ func (ml MessageReadWriter) decodeMessage(payload []byte, command string) (inter
 		}
 		return &msg, nil
 	case "getheaders":
-		fmt.Printf("payload is: %x\n", payload)
+		//fmt.Printf("payload is: %x\n", payload)
 		return &p2p.MsgInv{}, nil
 	default:
 		//log.Println("missing logic for message with command: ", command)

@@ -77,7 +77,7 @@ func (n *Node) Stop() {
 	log.Println("Stop Node. 111111111")
 	n.serverPeer.Range(func(key, value any) bool {
 		log.Println("Stop Node. 222222")
-		pnm := value.(PeerConnectionManager)
+		pnm := value.(StartStop)
 		pnm.Stop()
 		log.Println("Stop Node.3333333")
 		return true
