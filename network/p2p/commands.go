@@ -8,7 +8,7 @@ const (
 	cmdAncpkginfo   = "ancpkginfo"
 	cmdSendpackages = "sendpackages"
 	cmdPing         = "ping"
-	cmdPong         = "pong"
+	CmdPong         = "pong"
 
 	CmdAddrv2      = "addrv2"
 	cmdSendaddrv2  = "sendaddrv2"
@@ -72,7 +72,7 @@ var commands = map[string][commandLength]byte{
 	cmdVersion:      newCommand(cmdVersion),
 	cmdVerack:       newCommand(cmdVerack),
 	cmdPing:         newCommand(cmdPing),
-	cmdPong:         newCommand(cmdPong),
+	CmdPong:         newCommand(CmdPong),
 	cmdSendcmpct:    newCommand(cmdSendcmpct),
 	CmdGetheaders:   newCommand(CmdGetheaders),
 	cmdAddr:         newCommand(cmdAddr),

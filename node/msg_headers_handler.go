@@ -128,6 +128,7 @@ func Hash(bh p2p.BlockHeader) [32]byte {
 }
 
 func ValidateChain(headers []p2p.BlockHeader) (*big.Int, bool) {
+	cumulPoW := big.NewInt(0)
 	for i := 1; i < len(headers); i++ {
 		if headers[i].PrevBlockHash != Hash(headers[i-1]) {
 			log.Println("block's previous block hash is different")
@@ -140,6 +141,11 @@ func ValidateChain(headers []p2p.BlockHeader) (*big.Int, bool) {
 			log.Println("Bits:", headers[i].Bits)
 			return nil, false
 		}
+
+		target := BitsToTarget(headers[i].Bits)
+		currentPoW := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil)
+		currentPoW.Div(currentPoW, target)
+		cumulPoW.Add(cumulPoW, currentPoW)
 	}
-	return false
+	return cumulPoW, true
 }

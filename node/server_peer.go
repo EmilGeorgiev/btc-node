@@ -173,6 +173,9 @@ func (sp *ServerPeer) handOutgoingMsgs(wg *sync.WaitGroup) {
 			log.Println("Stop goroutine that handle outgoing msg for peers: ", addr)
 			return
 		case msg := <-sp.outgoingMsgs:
+			if msg.CommandString() != p2p.CmdGetheaders && msg.CommandString() != p2p.CmdPong {
+				continue
+			}
 			fmt.Println("send outgoin message:", msg.MessageHeader.CommandString())
 			err := sp.networkMessageHandler.WriteMessage(msg, conn)
 			if err != nil {
@@ -203,6 +206,9 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgHeaders:
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
 	case *p2p.MsgBlock:
+		if sp.mode == Overview {
+			return
+		}
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)
 	default:
 		//log.Printf("missing handler for msg: %#v\n", msg)

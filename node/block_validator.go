@@ -69,7 +69,7 @@ func BitsToTarget(bits uint32) *big.Int {
 // ValidateBlockHash ...
 func blockHashLessThanTargetDifficulty(headers *p2p.BlockHeader) bool {
 	hash := Hash(*headers)
-	hashBig := new(big.Int).SetBytes(hash[:])
+	hashBig := new(big.Int).SetBytes(p2p.Reverse(hash[:]))
 	target := BitsToTarget(headers.Bits)
 
 	return hashBig.Cmp(target) <= 0
