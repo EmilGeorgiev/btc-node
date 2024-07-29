@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type PrevHeaders struct {
+type HeadersOverview struct {
 	LastBlockHash [32]byte
 	HeadersCount  int64
 	CumulativePoW *big.Int
@@ -20,14 +20,14 @@ type PeerSync struct {
 	syncWait                time.Duration
 	prevHeadersAreProcessed <-chan struct{}
 
-	prevHeaders <-chan PrevHeaders
+	prevHeaders <-chan HeadersOverview
 
 	isStarted atomic.Bool
 	stop      chan struct{}
 	done      chan struct{}
 }
 
-func NewPeerSync(hr HeaderRequester, d time.Duration, ph <-chan struct{}, prevHeaders chan PrevHeaders) *PeerSync {
+func NewPeerSync(hr HeaderRequester, d time.Duration, ph <-chan struct{}, prevHeaders chan HeadersOverview) *PeerSync {
 	return &PeerSync{
 		headerRequester:         hr,
 		syncWait:                d,
@@ -82,7 +82,7 @@ var zeroBlockHash = [32]byte{
 func (cs *PeerSync) getChainOverview(peerAddr string, ch chan common.ChainOverview) {
 	cho := common.ChainOverview{Peer: peerAddr, CumulativeWork: big.NewInt(0)}
 	timer := time.NewTimer(30 * time.Second)
-	lastPrevHeaders := PrevHeaders{LastBlockHash: zeroBlockHash}
+	lastPrevHeaders := HeadersOverview{LastBlockHash: zeroBlockHash}
 	_ = cs.headerRequester.RequestHeadersFromBlockHash(zeroBlockHash)
 
 Loop:

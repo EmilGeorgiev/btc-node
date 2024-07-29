@@ -29,14 +29,12 @@ type StartStop interface {
 
 type MsgHandlersManager interface {
 	StartStop
-
-	SetMsgHandlersInMode(mode string)
 }
 
 type SyncManager interface {
 	StartStop
 
-	GetChainOverview(chan common.ChainOverview)
+	GetChainOverview(peerAddr string, cho chan common.ChainOverview)
 }
 
 // PeerConnectionManager defines the interface for managing peer connections in a Bitcoin network.

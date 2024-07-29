@@ -12,6 +12,13 @@ import (
 	"sync/atomic"
 )
 
+type Mode int
+
+const (
+	Overview Mode = iota
+	Standard
+)
+
 type ServerPeer struct {
 	msgHandlersManager    MsgHandlersManager
 	peerSync              SyncManager
@@ -22,6 +29,7 @@ type ServerPeer struct {
 	isStarted             atomic.Bool
 	isSyncStarted         atomic.Bool
 	network               string
+	mode                  Mode
 
 	msgHeaders chan<- *p2p.MsgHeaders
 	msgBlocks  chan<- *p2p.MsgBlock
@@ -43,6 +51,7 @@ func NewServerPeer(network string, mhm MsgHandlersManager, ps SyncManager, nmh N
 		msgHeaders:            h,
 		msgBlocks:             b,
 		stop:                  make(chan struct{}, 1),
+		mode:                  Overview,
 	}
 }
 
@@ -68,8 +77,8 @@ func (sp *ServerPeer) Start() {
 func (sp *ServerPeer) GetChainOverview() <-chan common.ChainOverview {
 	ch := make(chan common.ChainOverview)
 
-	sp.msgHandlersManager.SetMsgHandlersInMode("Overview")
-	sp.peerSync.GetChainOverview(ch)
+	sp.mode = Overview
+	sp.peerSync.GetChainOverview(sp.peer.Address, ch)
 
 	return ch
 }

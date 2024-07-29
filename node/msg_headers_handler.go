@@ -3,7 +3,9 @@ package node
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
+	"math/big"
 	"sync/atomic"
 
 	"github.com/EmilGeorgiev/btc-node/network/binary"
@@ -11,28 +13,28 @@ import (
 )
 
 type MsgHeadersHandler struct {
-	network                  string
-	outgoingMsgs             chan<- *p2p.Message
-	headers                  <-chan *p2p.MsgHeaders
-	expectedStartFromHash    <-chan [32]byte
-	syncCompleted            chan<- struct{}
-	stop                     chan struct{}
-	done                     chan struct{}
-	isStarted                atomic.Bool
-	notifyForExpectedHeaders chan<- []p2p.BlockHeader
+	network               string
+	outgoingMsgs          chan<- *p2p.Message
+	headers               <-chan *p2p.MsgHeaders
+	expectedStartFromHash <-chan [32]byte
+	syncCompleted         chan<- struct{}
+	stop                  chan struct{}
+	done                  chan struct{}
+	isStarted             atomic.Bool
+	headersOverviews      chan<- sync.HeadersOverview //[]p2p.BlockHeader
 }
 
 func NewMsgHeaderHandler(n string, out chan<- *p2p.Message, h <-chan *p2p.MsgHeaders,
-	expectedStartFromHash <-chan [32]byte, syncCompl chan struct{}, notifyForExpectedBlockHeaders chan<- []p2p.BlockHeader) *MsgHeadersHandler {
+	expectedStartFromHash <-chan [32]byte, syncCompl chan struct{}, headersOverviews chan<- sync.HeadersOverview) *MsgHeadersHandler {
 	return &MsgHeadersHandler{
-		network:                  n,
-		outgoingMsgs:             out,
-		headers:                  h,
-		expectedStartFromHash:    expectedStartFromHash,
-		syncCompleted:            syncCompl,
-		stop:                     make(chan struct{}, 1000),
-		done:                     make(chan struct{}, 1000),
-		notifyForExpectedHeaders: notifyForExpectedBlockHeaders,
+		network:               n,
+		outgoingMsgs:          out,
+		headers:               h,
+		expectedStartFromHash: expectedStartFromHash,
+		syncCompleted:         syncCompl,
+		stop:                  make(chan struct{}, 1000),
+		done:                  make(chan struct{}, 1000),
+		headersOverviews:      headersOverviews,
 	}
 }
 
@@ -67,13 +69,13 @@ type HeadersFromPeer struct {
 
 func (mh *MsgHeadersHandler) handleHeaders() {
 	fmt.Println("START HEADERS HANDLER")
-	//var expHeadersToStartFromHash = [32]byte{}
+	expPrevBlockHash := zero
 	for {
 		select {
 		case <-mh.stop:
 			mh.done <- struct{}{}
 			return
-		case <-mh.expectedStartFromHash:
+		case expPrevBlockHash = <-mh.expectedStartFromHash:
 		case msgH := <-mh.headers: // handle MsgHeaders
 			headers := msgH.BlockHeaders
 			if len(headers) == 0 {
@@ -82,7 +84,20 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 				continue
 			}
 
-			if !ValidateChain(msgH.BlockHeaders) {
+			if expPrevBlockHash != headers[0].PrevBlockHash {
+				log.Println("The current Headers are not requested and will be scipped")
+				continue
+			}
+
+			cumulPoW, isValid := ValidateChain(msgH.BlockHeaders)
+			if !isValid {
+				lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
+				mh.headersOverviews <- sync.HeadersOverview{
+					LastBlockHash: lastBlockHash,
+					HeadersCount:  int64(len(msgH.BlockHeaders)),
+					CumulativePoW: cumulPoW,
+					IsValid:       true,
+				}
 				continue
 			}
 
@@ -94,7 +109,14 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}
 			msg, _ := p2p.NewMessage(p2p.CmdGetdata, mh.network, msgGetdata)
 			fmt.Println("Send Get Data With ", msgGetdata.Count)
-			mh.notifyForExpectedHeaders <- msgH.BlockHeaders // notify block handlers what to expect
+			lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
+			mh.headersOverviews <- sync.HeadersOverview{
+				LastBlockHash: lastBlockHash,
+				HeadersCount:  int64(len(msgH.BlockHeaders)),
+				CumulativePoW: cumulPoW,
+				IsValid:       true,
+			}
+			// notify block handlers what to expect
 			mh.outgoingMsgs <- msg
 		}
 	}
@@ -105,18 +127,18 @@ func Hash(bh p2p.BlockHeader) [32]byte {
 	return sha256.Sum256(firstHash[:])
 }
 
-func ValidateChain(headers []p2p.BlockHeader) bool {
+func ValidateChain(headers []p2p.BlockHeader) (*big.Int, bool) {
 	for i := 1; i < len(headers); i++ {
 		if headers[i].PrevBlockHash != Hash(headers[i-1]) {
 			log.Println("block's previous block hash is different")
-			return false
+			return nil, false
 		}
 		if !blockHashLessThanTargetDifficulty(&headers[i]) {
 			hash := Hash(headers[i])
 			log.Println("block hash is greather than target difficulty:")
 			log.Printf("Hash %x\n", p2p.Reverse(hash[:]))
 			log.Println("Bits:", headers[i].Bits)
-			return false
+			return nil, false
 		}
 	}
 	return false
