@@ -62,6 +62,7 @@ func (n *Node) Start() {
 	go n.listenForPeerErrors()
 	for _, peerAddr := range n.peerAddrs {
 		if err := n.connectToPeer(peerAddr); err != nil {
+			n.peerChain.Store(peerAddr, PeerChain{})
 			n.errors <- PeerErr{
 				Peer: p2p.Peer{Address: peerAddr.String()},
 				Err:  err,
@@ -79,6 +80,7 @@ func (n *Node) Start() {
 
 func (n *Node) getChainOverview(pch PeerChain) {
 	defer n.wg.Done()
+	log.Println("Initialize getChainOverview from Node")
 	overviewCh := pch.peer.GetChainOverview()
 	for {
 		select {
@@ -89,8 +91,8 @@ func (n *Node) getChainOverview(pch PeerChain) {
 				return
 			}
 			log.Println("Overview for the peer is done: ", pch.peer.GetPeerAddr())
-			log.Printf("Overview: %#v\n", pch.view)
 			pch.view = &view
+			log.Printf("Overview: %#v\n", pch.view)
 			n.peerChain.Store(pch.peer.GetPeerAddr(), pch)
 			n.selectBestPeerChainForSync()
 			return
@@ -104,18 +106,18 @@ type PeerChain struct {
 }
 
 func (n *Node) selectBestPeerChainForSync() {
-	var chainsOverviewsCompleted bool
+	chainsOverviewsCompleted := true
 	var bestChain PeerChain
 	n.peerChain.Range(func(key, value any) bool {
 		pch := value.(PeerChain)
 		if pch.view == nil {
+			chainsOverviewsCompleted = false
 			return false
 		}
 
-		chainsOverviewsCompleted = true
 		if bestChain.view == nil {
 			bestChain = pch
-			return false
+			return true
 		}
 
 		if bestChain.view.CumulativeWork.Cmp(pch.view.CumulativeWork) == -1 {
@@ -126,9 +128,11 @@ func (n *Node) selectBestPeerChainForSync() {
 	})
 
 	if !chainsOverviewsCompleted {
+		log.Println("overview is nit completed")
 		return
 	}
 
+	log.Printf("THE BEST CHAIN is from PEER: %#v\n", bestChain.peer.GetPeerAddr())
 	bestChain.peer.Sync()
 }
 
@@ -139,8 +143,8 @@ func (n *Node) Stop() {
 	log.Println("Stop Node. 111111111")
 	n.peerChain.Range(func(key, value any) bool {
 		log.Println("Stop Node. 222222")
-		pnm := value.(StartStop)
-		pnm.Stop()
+		pch := value.(PeerChain)
+		pch.peer.Stop()
 		log.Println("Stop Node.3333333")
 		return true
 	})
@@ -180,7 +184,7 @@ func (n *Node) connectToPeer(addr common.Addr) error {
 	}
 
 	pcm := n.newServerPeer(handshake.Peer, n.errors)
-	n.peerChain.Store(addr.String(), pcm)
+	n.peerChain.Store(addr.String(), PeerChain{peer: pcm})
 	pcm.Start()
 	return nil
 }

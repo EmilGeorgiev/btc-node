@@ -3,6 +3,7 @@ package sync
 import (
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/common"
+	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"log"
 	"math/big"
 	"sync/atomic"
@@ -70,6 +71,8 @@ func (cs *PeerSync) Stop() {
 }
 
 func (cs *PeerSync) GetChainOverview(peerAddr string, ch chan common.ChainOverview) {
+	cs.isStarted.Store(true)
+	log.Println("start get chain overview from peersync")
 	go cs.getChainOverview(peerAddr, ch)
 }
 
@@ -80,12 +83,25 @@ var zeroBlockHash = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
 
+//var genesys = [32]byte{
+//	0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
+//	0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
+//	0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
+//	0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f}
+
+//var GenesisBlockHash = [32]byte{
+//	0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
+//	0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
+//	0x93, 0x1e, 0x83, 0x65, 0xa1, 0x5a, 0x08, 0x9c,
+//	0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
+//}
+
 func (cs *PeerSync) getChainOverview(peerAddr string, ch chan common.ChainOverview) {
-	cho := common.ChainOverview{Peer: peerAddr, CumulativeWork: big.NewInt(0)}
+	cho := common.ChainOverview{Peer: peerAddr, CumulativeWork: big.NewInt(0), IsValid: true}
 	timer := time.NewTimer(30 * time.Second)
-	lastPrevHeaders := HeadersOverview{LastBlockHash: zeroBlockHash}
-	fmt.Println("request headers from hash zero")
-	_ = cs.headerRequester.RequestHeadersFromBlockHash(zeroBlockHash)
+	var lastPrevHeaders HeadersOverview
+	fmt.Println("request genesys block.")
+	_ = cs.headerRequester.RequestHeadersFromLastBlock()
 
 Loop:
 	for {
@@ -96,16 +112,21 @@ Loop:
 			return
 		case prevHeaders := <-cs.prevHeaders:
 			timer.Reset(cs.syncWait)
-			fmt.Printf("Receive processe headers from handler: %#v\n", prevHeaders)
+			log.Printf("Last processed block is %x\n", p2p.Reverse(prevHeaders.LastBlockHash[:]))
+			log.Println("Common number of processed headers:", cho.NumberOfBlocks)
+			//fmt.Printf("Receive processe headers from handler: %#v\n", prevHeaders)
 			if prevHeaders.HeadersCount == 0 {
+				log.Println("Stop the loop in peer sync. get last headers.")
 				break Loop
 			}
 
 			if prevHeaders.LastBlockHash == lastPrevHeaders.LastBlockHash {
+				log.Println("prev block hash equal to the last processes block hash. Skip this:", p2p.Reverse(lastPrevHeaders.LastBlockHash[:]))
 				continue
 			}
 
 			if !prevHeaders.IsValid {
+				log.Println("headers are invalid: ", p2p.Reverse(lastPrevHeaders.LastBlockHash[:]))
 				cho.IsValid = false
 				break Loop
 			}
@@ -115,12 +136,14 @@ Loop:
 			_ = cs.headerRequester.RequestHeadersFromBlockHash(prevHeaders.LastBlockHash)
 			lastPrevHeaders = prevHeaders
 		case <-timer.C:
+			log.Printf("Request headers after waiting some seconds: %x\n", p2p.Reverse(lastPrevHeaders.LastBlockHash[:]))
 			timer.Reset(cs.syncWait)
 			_ = cs.headerRequester.RequestHeadersFromBlockHash(lastPrevHeaders.LastBlockHash)
 		}
 	}
 
 	ch <- cho
+	cs.isStarted.Store(false)
 }
 
 func (cs *PeerSync) start() {

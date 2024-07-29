@@ -70,7 +70,7 @@ func (sp *ServerPeer) Start() {
 	log.Println("Start server peer 4444444")
 	go sp.handOutgoingMsgs(&sp.wg)
 	log.Println("Start server peer 5555")
-	sp.peerSync.Start()
+	//sp.peerSync.Start()
 	log.Println("Start server peer 666666")
 }
 
@@ -166,6 +166,8 @@ func (sp *ServerPeer) handleIncomingMsgs(wg *sync.WaitGroup) {
 					Peer: sp.peer,
 					Err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
 				}
+
+				fmt.Println("server peer stop itself")
 				go sp.Stop()
 				return
 			}
@@ -189,7 +191,7 @@ func (sp *ServerPeer) handOutgoingMsgs(wg *sync.WaitGroup) {
 			if sp.mode == Overview && msg.CommandString() != p2p.CmdGetheaders && msg.CommandString() != p2p.CmdPong {
 				continue
 			}
-			fmt.Println("send outgoin message:", msg.MessageHeader.CommandString())
+			log.Println("send outgoin message:", msg.MessageHeader.CommandString())
 			err := sp.networkMessageHandler.WriteMessage(msg, conn)
 			if err != nil {
 				var netErr net.Error

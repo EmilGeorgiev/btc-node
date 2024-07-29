@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/EmilGeorgiev/btc-node/db"
 	"github.com/EmilGeorgiev/btc-node/network"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
@@ -73,5 +72,5 @@ func Run(cfg Config) {
 	// Stop the node gracefully
 	n.Stop()
 
-	fmt.Println("Server stopped gracefully.")
+	log.Println("Server stopped gracefully.")
 }

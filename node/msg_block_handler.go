@@ -71,7 +71,6 @@ func (mh *MsgBlockHandler) handleMsgBlock() {
 			mh.done <- struct{}{}
 			return
 		case expectedHeaders = <-mh.expectedBlockHeaders:
-			log.Println("Set expected headers")
 		case block := <-mh.blocks:
 			log.Println("validate block")
 			if err := mh.blockValidator.Validate(block); err != nil {

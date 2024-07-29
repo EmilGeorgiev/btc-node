@@ -3,7 +3,14 @@ package common
 import (
 	"fmt"
 	"math/big"
+	"os"
 )
+
+var fileLog os.File
+
+func WriteToFile(log string) {
+	fileLog.WriteString(log)
+}
 
 type Addr struct {
 	IP   string

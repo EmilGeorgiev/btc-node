@@ -69,7 +69,7 @@ type HeadersFromPeer struct {
 
 func (mh *MsgHeadersHandler) handleHeaders() {
 	fmt.Println("START HEADERS HANDLER")
-	expPrevBlockHash := zero
+	expPrevBlockHash := sync.GenesisBlockHash
 	for {
 		select {
 		case <-mh.stop:
@@ -80,23 +80,28 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			headers := msgH.BlockHeaders
 			if len(headers) == 0 {
 				log.Println("complete sync")
-				mh.syncCompleted <- struct{}{}
+				//mh.syncCompleted <- struct{}{}
+				mh.headersOverviews <- sync.HeadersOverview{IsValid: true}
 				continue
 			}
 
 			if expPrevBlockHash != headers[0].PrevBlockHash {
 				log.Println("The current Headers are not requested and will be scipped")
+				log.Printf("expected prev block hash: %x\n", p2p.Reverse(expPrevBlockHash[:]))
+				h := headers[0].PrevBlockHash
+				log.Printf("actual prev block hash: %x\n", p2p.Reverse(h[:]))
 				continue
 			}
 
 			cumulPoW, isValid := ValidateChain(msgH.BlockHeaders)
 			if !isValid {
 				lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
+				log.Printf("headers chain is not valid ; %x\n", p2p.Reverse(lastBlockHash[:]))
 				mh.headersOverviews <- sync.HeadersOverview{
 					LastBlockHash: lastBlockHash,
 					HeadersCount:  int64(len(msgH.BlockHeaders)),
 					CumulativePoW: cumulPoW,
-					IsValid:       true,
+					IsValid:       false,
 				}
 				continue
 			}
@@ -108,7 +113,7 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 
 			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}
 			msg, _ := p2p.NewMessage(p2p.CmdGetdata, mh.network, msgGetdata)
-			fmt.Println("Send Get Data With ", msgGetdata.Count)
+			log.Println("Send Get Data With ", msgGetdata.Count)
 			lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
 			mh.headersOverviews <- sync.HeadersOverview{
 				LastBlockHash: lastBlockHash,
