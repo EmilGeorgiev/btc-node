@@ -38,6 +38,7 @@ type PeerConnectionManager interface {
 	StopSync()
 
 	GetPeerAddr() string
+	GetChainOverview() <-chan ChainOverview
 }
 
 type NetworkMessageHandler interface {

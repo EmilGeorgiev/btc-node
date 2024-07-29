@@ -3,6 +3,7 @@ package node
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,7 +17,7 @@ type Node struct {
 	newServerPeer          func(p2p.Peer, chan PeerErr) StartStop
 	network                string
 	userAgent              string
-	serverPeer             *sync.Map
+	peerChain              *sync.Map
 	errors                 chan PeerErr
 	syncCompleted          chan struct{}
 	peerAddrs              []common.Addr
@@ -42,7 +43,7 @@ func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) S
 		userAgent:              userAgent,
 		peerAddrs:              peerAddr,
 		errors:                 err,
-		serverPeer:             &sync.Map{},
+		peerChain:              &sync.Map{},
 		syncCompleted:          sf,
 		handshakeManager:       hm,
 		getNextPeerConnMngWait: w,
@@ -68,6 +69,72 @@ func (n *Node) Start() {
 			}
 		}
 	}
+
+	n.peerChain.Range(func(key, value any) bool {
+		n.wg.Add(1)
+		pch := value.(PeerChain)
+		go n.getChainOverview(pch)
+		return true
+	})
+}
+
+func (n *Node) getChainOverview(pch PeerChain) {
+	defer n.wg.Done()
+	overviewCh := pch.peer.GetChainOverview()
+	for {
+		select {
+		case <-n.stop:
+			return
+		case view, ok := <-overviewCh:
+			if !ok {
+				return
+			}
+			pch.view = &view
+			n.peerChain.Store(pch.peer.GetPeerAddr(), pch)
+			n.selectBestPeerChainForSync()
+			return
+		}
+	}
+}
+
+type ChainOverview struct {
+	Peer           string
+	BlockNumber    int64
+	CumulativeWork *big.Int
+}
+
+type PeerChain struct {
+	peer PeerConnectionManager
+	view *ChainOverview
+}
+
+func (n *Node) selectBestPeerChainForSync() {
+	var chainsOverviewsCompleted bool
+	var bestChain PeerChain
+	n.peerChain.Range(func(key, value any) bool {
+		pch := value.(PeerChain)
+		if pch.view == nil {
+			return false
+		}
+
+		chainsOverviewsCompleted = true
+		if bestChain.view == nil {
+			bestChain = pch
+			return false
+		}
+
+		if bestChain.view.CumulativeWork.Cmp(pch.view.CumulativeWork) == -1 {
+			bestChain = pch
+		}
+
+		return true
+	})
+
+	if !chainsOverviewsCompleted {
+		return
+	}
+
+	bestChain.peer.Sync()
 }
 
 func (n *Node) Stop() {
@@ -75,7 +142,7 @@ func (n *Node) Stop() {
 	close(n.stop)
 	n.wg.Wait()
 	log.Println("Stop Node. 111111111")
-	n.serverPeer.Range(func(key, value any) bool {
+	n.peerChain.Range(func(key, value any) bool {
 		log.Println("Stop Node. 222222")
 		pnm := value.(StartStop)
 		pnm.Stop()
@@ -118,7 +185,7 @@ func (n *Node) connectToPeer(addr common.Addr) error {
 	}
 
 	pcm := n.newServerPeer(handshake.Peer, n.errors)
-	n.serverPeer.Store(addr.String(), pcm)
+	n.peerChain.Store(addr.String(), pcm)
 	pcm.Start()
 	return nil
 }
@@ -134,12 +201,12 @@ func (n *Node) listenForPeerErrors() {
 		case peerErr := <-n.errors:
 			log.Println("ERROR Listener: receive err: ", peerErr.Err)
 			addr := peerErr.Peer.Address
-			if _, ok := n.serverPeer.Load(addr); !ok {
+			if _, ok := n.peerChain.Load(addr); !ok {
 				log.Println("doesn't exists peer with IP:", addr)
 				continue
 			}
 
-			n.serverPeer.Delete(addr)
+			n.peerChain.Delete(addr)
 			p := strings.Split(addr, ":")
 			if len(p) != 2 {
 				log.Printf("Invalid peer IP address: %s", addr)
@@ -181,7 +248,7 @@ func (n *Node) listenForPeerErrors() {
 //	log.Println("Start Node's sync peer logic.")
 //	var pcm PeerConnectionManager
 //	for {
-//		n.serverPeer.Range(func(key, value any) bool {
+//		n.peerChain.Range(func(key, value any) bool {
 //			pcm = value.(PeerConnectionManager)
 //			return false
 //		})

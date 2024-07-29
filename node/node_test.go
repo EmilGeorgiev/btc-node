@@ -189,7 +189,7 @@ func TestGetNextPeerConnMngForSync_HappyPath(t *testing.T) {
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             m,
+		peerChain:              m,
 		getNextPeerConnMngWait: 10 * time.Millisecond,
 	}
 	actual, currentIndex := n.getNextPeerConnMngForSync(-1)
@@ -213,7 +213,7 @@ func TestGetNextPeerConnMngForSync_WhenTheCurrentIndexIsEqualToLenOdSlice(t *tes
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             m,
+		peerChain:              m,
 		getNextPeerConnMngWait: 10 * time.Millisecond,
 	}
 	actual, currentIndex := n.getNextPeerConnMngForSync(3)
@@ -236,7 +236,7 @@ func TestGetNextPeerConnMngForSync_WhenThereIsNoAvailablePeerConnManagerAfterThe
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             m,
+		peerChain:              m,
 		getNextPeerConnMngWait: 10 * time.Millisecond,
 	}
 	actual, currentIndex := n.getNextPeerConnMngForSync(1)
@@ -252,7 +252,7 @@ func TestGetNextPeerConnMngForSync_WhenThereIsNothingAvailableConnManagersThenTh
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             &sync.Map{},
+		peerChain:              &sync.Map{},
 		stop:                   make(chan struct{}),
 		getNextPeerConnMngWait: 10 * time.Millisecond,
 	}
@@ -289,7 +289,7 @@ func TestSyncPeer_NotifySyncGoroutineForAnErrorInPeerThatIsNotInSync(t *testing.
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             m,
+		peerChain:              m,
 		stop:                   make(chan struct{}),
 		doneSync:               make(chan struct{}),
 		notifySyncForError:     make(chan PeerErr),
@@ -320,7 +320,7 @@ func TestSyncPeer_WhenThereIsNoAvailablePeerConnManagersUntilSomeTime(t *testing
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             &sync.Map{},
+		peerChain:              &sync.Map{},
 		stop:                   make(chan struct{}),
 		doneSync:               make(chan struct{}),
 		notifySyncForError:     make(chan PeerErr),
@@ -328,8 +328,8 @@ func TestSyncPeer_WhenThereIsNoAvailablePeerConnManagersUntilSomeTime(t *testing
 	}
 	go n.syncPeers()
 
-	time.Sleep(50 * time.Millisecond)         // give to search for available conn managers
-	n.serverPeer.Store("127.0.0.1:3333", pcm) // store conn manager
+	time.Sleep(50 * time.Millisecond)        // give to search for available conn managers
+	n.peerChain.Store("127.0.0.1:3333", pcm) // store conn manager
 
 	n.notifySyncForError <- PeerErr{
 		Peer: p2p.Peer{
@@ -363,7 +363,7 @@ func TestSyncPeer_WhenReceiveErrorFromPeerWhileSyncWithIt(t *testing.T) {
 			{IP: "127.0.0.2", Port: 4444},
 			{IP: "127.0.0.3", Port: 5555},
 		},
-		serverPeer:             m,
+		peerChain:              m,
 		stop:                   make(chan struct{}),
 		doneSync:               make(chan struct{}),
 		notifySyncForError:     make(chan PeerErr),
@@ -374,7 +374,7 @@ func TestSyncPeer_WhenReceiveErrorFromPeerWhileSyncWithIt(t *testing.T) {
 	pe := PeerErr{Peer: p2p.Peer{Address: "127.0.0.8:8888"}}
 	n.notifySyncForError <- pe // first receive an error that is not with the peer which is in sync
 
-	n.serverPeer.Delete("127.0.0.1:3333") // delete the conn manager because an error is received from it.
+	n.peerChain.Delete("127.0.0.1:3333") // delete the conn manager because an error is received from it.
 	pe = PeerErr{Peer: p2p.Peer{Address: "127.0.0.1:3333"}}
 	n.notifySyncForError <- pe // this peer is in sync and the Node will continue to the next one (127.0.0.2:4444)
 	n.notifySyncForError <- pe // send the same error for the second time will not change the current peer (127.0.0.2:4444)
