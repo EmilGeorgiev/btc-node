@@ -22,6 +22,7 @@ type Node interface {
 
 type HeaderRequester interface {
 	RequestHeadersFromLastBlock() error
+	RequestHeadersFromBlockHash([32]byte) error
 }
 
 type BlockRepository interface {

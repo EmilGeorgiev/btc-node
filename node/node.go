@@ -3,7 +3,6 @@ package node
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -97,15 +96,9 @@ func (n *Node) getChainOverview(pch PeerChain) {
 	}
 }
 
-type ChainOverview struct {
-	Peer           string
-	BlockNumber    int64
-	CumulativeWork *big.Int
-}
-
 type PeerChain struct {
 	peer PeerConnectionManager
-	view *ChainOverview
+	view *common.ChainOverview
 }
 
 func (n *Node) selectBestPeerChainForSync() {

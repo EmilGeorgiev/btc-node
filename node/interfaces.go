@@ -27,6 +27,18 @@ type StartStop interface {
 	Stop()
 }
 
+type MsgHandlersManager interface {
+	StartStop
+
+	SetMsgHandlersInMode(mode string)
+}
+
+type SyncManager interface {
+	StartStop
+
+	GetChainOverview(chan common.ChainOverview)
+}
+
 // PeerConnectionManager defines the interface for managing peer connections in a Bitcoin network.
 type PeerConnectionManager interface {
 	StartStop
@@ -38,7 +50,7 @@ type PeerConnectionManager interface {
 	StopSync()
 
 	GetPeerAddr() string
-	GetChainOverview() <-chan ChainOverview
+	GetChainOverview() <-chan common.ChainOverview
 }
 
 type NetworkMessageHandler interface {

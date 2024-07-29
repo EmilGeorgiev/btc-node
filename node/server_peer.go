@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/common"
 	errors2 "github.com/EmilGeorgiev/btc-node/errors"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"log"
@@ -12,8 +13,8 @@ import (
 )
 
 type ServerPeer struct {
-	msgHandlersManager    StartStop
-	peerSync              StartStop
+	msgHandlersManager    MsgHandlersManager
+	peerSync              SyncManager
 	networkMessageHandler NetworkMessageHandler
 	peer                  p2p.Peer
 	outgoingMsgs          chan *p2p.Message
@@ -29,7 +30,7 @@ type ServerPeer struct {
 	wg   sync.WaitGroup
 }
 
-func NewServerPeer(network string, mhm StartStop, ps StartStop, nmh NetworkMessageHandler, p p2p.Peer,
+func NewServerPeer(network string, mhm MsgHandlersManager, ps SyncManager, nmh NetworkMessageHandler, p p2p.Peer,
 	out chan *p2p.Message, e chan<- PeerErr, h chan<- *p2p.MsgHeaders, b chan<- *p2p.MsgBlock) *ServerPeer {
 	return &ServerPeer{
 		network:               network,
@@ -62,6 +63,15 @@ func (sp *ServerPeer) Start() {
 	log.Println("Start server peer 5555")
 	sp.peerSync.Start()
 	log.Println("Start server peer 666666")
+}
+
+func (sp *ServerPeer) GetChainOverview() <-chan common.ChainOverview {
+	ch := make(chan common.ChainOverview)
+
+	sp.msgHandlersManager.SetMsgHandlersInMode("Overview")
+	sp.peerSync.GetChainOverview(ch)
+
+	return ch
 }
 
 //func (sp *ServerPeer) Sync() {

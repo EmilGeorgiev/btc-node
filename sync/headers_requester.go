@@ -56,3 +56,14 @@ func (cs HeadersRequester) RequestHeadersFromLastBlock() error {
 	cs.outgoingMsgs <- gh
 	return nil
 }
+
+func (cs HeadersRequester) RequestHeadersFromBlockHash(hash [32]byte) error {
+	gh, err := p2p.NewMsgGetHeader(cs.network, 1, hash, [32]byte{0})
+	if err != nil {
+		return errors.Join(ErrFailedToCreateMsgGetHeaders, err)
+	}
+
+	cs.expectedHashes <- hash
+	cs.outgoingMsgs <- gh
+	return nil
+}
