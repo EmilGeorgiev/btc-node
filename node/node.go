@@ -13,7 +13,7 @@ import (
 )
 
 type Node struct {
-	newServerPeer          func(p2p.Peer, chan PeerErr) StartStop
+	newServerPeer          func(p2p.Peer, chan PeerErr) PeerConnectionManager
 	network                string
 	userAgent              string
 	peerChain              *sync.Map
@@ -29,7 +29,7 @@ type Node struct {
 }
 
 // New returns a new Node.
-func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) StartStop,
+func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) PeerConnectionManager,
 	peerAddr []common.Addr, err chan PeerErr, sf chan struct{}, hm HandshakeManager, w time.Duration) (*Node, error) {
 	_, ok := p2p.Networks[network]
 	if !ok {
@@ -88,6 +88,8 @@ func (n *Node) getChainOverview(pch PeerChain) {
 			if !ok {
 				return
 			}
+			log.Println("Overview for the peer is done: ", pch.peer.GetPeerAddr())
+			log.Printf("Overview: %#v\n", pch.view)
 			pch.view = &view
 			n.peerChain.Store(pch.peer.GetPeerAddr(), pch)
 			n.selectBestPeerChainForSync()

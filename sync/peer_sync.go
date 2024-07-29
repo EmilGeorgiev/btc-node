@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"fmt"
 	"github.com/EmilGeorgiev/btc-node/common"
 	"log"
 	"math/big"
@@ -83,6 +84,7 @@ func (cs *PeerSync) getChainOverview(peerAddr string, ch chan common.ChainOvervi
 	cho := common.ChainOverview{Peer: peerAddr, CumulativeWork: big.NewInt(0)}
 	timer := time.NewTimer(30 * time.Second)
 	lastPrevHeaders := HeadersOverview{LastBlockHash: zeroBlockHash}
+	fmt.Println("request headers from hash zero")
 	_ = cs.headerRequester.RequestHeadersFromBlockHash(zeroBlockHash)
 
 Loop:
@@ -94,6 +96,7 @@ Loop:
 			return
 		case prevHeaders := <-cs.prevHeaders:
 			timer.Reset(cs.syncWait)
+			fmt.Printf("Receive processe headers from handler: %#v\n", prevHeaders)
 			if prevHeaders.HeadersCount == 0 {
 				break Loop
 			}

@@ -74,8 +74,20 @@ func (sp *ServerPeer) Start() {
 	log.Println("Start server peer 666666")
 }
 
+func (sp *ServerPeer) Sync() {
+	panic("implement me sync")
+}
+
+func (sp *ServerPeer) StopSync() {
+	panic("implement me StopSync")
+}
+
+func (sp *ServerPeer) GetPeerAddr() string {
+	return sp.peer.Address
+}
+
 func (sp *ServerPeer) GetChainOverview() <-chan common.ChainOverview {
-	ch := make(chan common.ChainOverview)
+	ch := make(chan common.ChainOverview, 1)
 
 	sp.mode = Overview
 	sp.peerSync.GetChainOverview(sp.peer.Address, ch)
@@ -173,7 +185,8 @@ func (sp *ServerPeer) handOutgoingMsgs(wg *sync.WaitGroup) {
 			log.Println("Stop goroutine that handle outgoing msg for peers: ", addr)
 			return
 		case msg := <-sp.outgoingMsgs:
-			if msg.CommandString() != p2p.CmdGetheaders && msg.CommandString() != p2p.CmdPong {
+
+			if sp.mode == Overview && msg.CommandString() != p2p.CmdGetheaders && msg.CommandString() != p2p.CmdPong {
 				continue
 			}
 			fmt.Println("send outgoin message:", msg.MessageHeader.CommandString())

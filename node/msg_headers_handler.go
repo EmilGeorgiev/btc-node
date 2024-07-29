@@ -131,7 +131,9 @@ func ValidateChain(headers []p2p.BlockHeader) (*big.Int, bool) {
 	cumulPoW := big.NewInt(0)
 	for i := 1; i < len(headers); i++ {
 		if headers[i].PrevBlockHash != Hash(headers[i-1]) {
-			log.Println("block's previous block hash is different")
+			h := headers[i].PrevBlockHash
+			log.Printf("block's previous block hash is different. prev block hash: %x\n", p2p.Reverse(h[:]))
+			//log.Printf("prev: %x current %x", p2p.Reverse(headers[i].PrevBlockHash), p2p.Reverse(Hash(headers[i-1])[:]))
 			return nil, false
 		}
 		if !blockHashLessThanTargetDifficulty(&headers[i]) {
