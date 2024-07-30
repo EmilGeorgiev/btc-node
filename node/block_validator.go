@@ -1,8 +1,10 @@
 package node
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
@@ -34,7 +36,56 @@ func (bv BlockValidator) Validate(bl *p2p.MsgBlock) error {
 	if !blockHashLessThanTargetDifficulty(&bl.BlockHeader) {
 		return fmt.Errorf("target hash is not es then target difficulty")
 	}
+
+	//if !bv.ValidateMerkleTree(bl) {
+	//	log.Println("merkle three is not valid or transactions are not valid")
+	//	return errors.New("merkle three is not valid or transactions are not valid")
+	//}
 	return nil
+}
+
+func (bv BlockValidator) ValidateMerkleTree(bl *p2p.MsgBlock) bool {
+	if bl.TxnCount == 1 {
+		h := HashTx(bl.Transactions[0])
+		return [32]byte(h) == bl.MerkleRoot
+	}
+
+	txHashes := make([][]byte, bl.TxnCount)
+	for i, tx := range bl.Transactions {
+		txHashes[i] = HashTx(tx)
+	}
+
+	if bl.TxnCount%2 != 0 {
+		// duplicate last transaction.
+		txHashes = append(txHashes, txHashes[bl.TxnCount-1])
+	}
+
+	for len(txHashes) > 1 {
+		var newLevel [][]byte
+		for i := 0; i < len(txHashes); i += 2 {
+			//if i+1 == len(txHashes) {
+			//	// Duplicate the last element if the number of elements is odd
+			//	txHashes = append(txHashes, txHashes[i])
+			//}
+			concatenated := append(txHashes[i], txHashes[i+1]...)
+			newLevel = append(newLevel, DHash(concatenated))
+		}
+		txHashes = newLevel
+	}
+	return bl.MerkleRoot == [32]byte(txHashes[0])
+}
+
+func DHash(b []byte) []byte {
+	firsthash := sha256.Sum256(b)
+	h := sha256.Sum256(firsthash[:])
+	return h[:]
+}
+
+func HashTx(tx p2p.MsgTx) []byte {
+	b, _ := binary.Marshal(tx)
+	firstHash := sha256.Sum256(b)
+	h := sha256.Sum256(firstHash[:])
+	return h[:]
 }
 
 func (bv BlockValidator) lastBlockHashMustBePreviousForTheCurrentOne(bl *p2p.MsgBlock) error {
