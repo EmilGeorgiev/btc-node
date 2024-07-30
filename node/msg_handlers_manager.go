@@ -25,8 +25,8 @@ func (m *MessageHandlersManager) Start() {
 
 func (m *MessageHandlersManager) Stop() {
 	for _, h := range m.msgHandlers {
-		log.Printf("Stop Managerhandlers' handler of type: %T\n", h)
 		h.Stop()
+		log.Printf("Stop Managerhandlers' handler of type: %T\n", h)
 	}
 }
 

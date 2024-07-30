@@ -39,27 +39,23 @@ func NewMsgHeaderHandler(n string, out chan<- *p2p.Message, h <-chan *p2p.MsgHea
 }
 
 func (mh *MsgHeadersHandler) Start() {
-	log.Println("Start MsgHEADERS handler")
 	if mh.isStarted.Load() {
+		log.Println("MsgHeadersHandler is already started.")
 		return
 	}
-	log.Println("Start MsgHEADERS handler 111111111")
 	mh.isStarted.Store(true)
-	log.Println("Start MsgHEADERS handler 222222")
 	go mh.handleHeaders()
-	log.Println("Start MsgHEADERS handler 333333333")
+	log.Println("Start MsgHeadersHandler.")
 }
 
 func (mh *MsgHeadersHandler) Stop() {
-	log.Println("Stop MsgHEADERS handler")
 	if !mh.isStarted.Load() {
+		log.Println("MsgHeadersHandler is already started.")
 		return
 	}
-	log.Println("Stop MsgHEADERS handler 1111111")
 	mh.stop <- struct{}{}
-	log.Println("Stop MsgHEADERS handler 2222222")
 	<-mh.done
-	log.Println("Stop MsgHEADERS handler 333333333")
+	log.Println("Stop MsgHeadersHandler")
 }
 
 type HeadersFromPeer struct {
@@ -106,7 +102,7 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 
 			inv := make([]p2p.InvVector, len(headers))
 			for i := 0; i < len(msgH.BlockHeaders); i++ {
-				inv[i] = p2p.InvVector{Type: 2, Hash: headers[i].PrevBlockHash}
+				inv[i] = p2p.InvVector{Type: 2, Hash: Hash(headers[i])}
 			}
 
 			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}

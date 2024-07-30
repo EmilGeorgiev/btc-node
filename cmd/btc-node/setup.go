@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
 	"github.com/EmilGeorgiev/btc-node/db"
 	"github.com/EmilGeorgiev/btc-node/network"
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
@@ -12,6 +15,8 @@ import (
 
 	"github.com/EmilGeorgiev/btc-node/node"
 )
+
+var genesysBlock = "0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000"
 
 func Run(cfg Config) {
 
@@ -23,6 +28,8 @@ func Run(cfg Config) {
 	if err != nil {
 		log.Fatalf("can't initialize Block repository: %s", err)
 	}
+
+	//storeGenesysBlock(blockRepo)
 
 	syncCompleted := make(chan struct{}, 1000)
 	//                        notify the block hash from which headers will come
@@ -87,4 +94,24 @@ func Run(cfg Config) {
 	n.Stop()
 
 	log.Println("Server stopped gracefully.")
+}
+
+func storeGenesysBlock(blockRepo sync.BlockRepository) {
+	b, _ := hex.DecodeString(genesysBlock)
+	buf := bytes.NewBuffer(b)
+	var msg p2p.Message
+
+	if err := binary.NewDecoder(buf).Decode(&msg); err != nil {
+		panic(err)
+	}
+
+	buf = bytes.NewBuffer(msg.Payload)
+	var msgBlock p2p.MsgBlock
+	if err := binary.NewDecoder(buf).Decode(&msgBlock); err != nil {
+		panic(err)
+	}
+
+	if err := blockRepo.Save(msgBlock); err != nil {
+		panic(err)
+	}
 }

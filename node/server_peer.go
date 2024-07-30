@@ -93,6 +93,7 @@ func (sp *ServerPeer) Sync() {
 	//	return
 	//}
 	//sp.isSyncStarted.Store(true)
+	sp.msgHandlersManager.Start()
 	sp.mode.Store(int64(Standard))
 	sp.peerSync.Start()
 }

@@ -131,6 +131,10 @@ Loop:
 			_ = cs.headerRequester.RequestHeadersFromBlockHash(headersValResult.GetLastBlockHeaderHash())
 			lastHeadersValResult = headersValResult
 		case <-timer.C:
+			if lastHeadersValResult.GetLastBlockHeaderHash() == [32]byte{} {
+				_ = cs.headerRequester.RequestHeadersFromLastBlock()
+				continue
+			}
 			log.Printf("Request headers after waiting some seconds: %x\n", p2p.Reverse(lastHeadersValResult.GetLastBlockHeaderHash()))
 			timer.Reset(cs.syncWait)
 			log.Println("call the RequestHeadersFromBlockHash from PeerSync.getChecinOverview case2:", time.Now().String())

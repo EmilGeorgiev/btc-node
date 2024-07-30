@@ -6,6 +6,7 @@ import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/EmilGeorgiev/btc-node/sync"
 	bolt "go.etcd.io/bbolt"
+	"log"
 )
 
 var (
@@ -64,14 +65,19 @@ func (db *BlocksRepo) GetLast() (p2p.MsgBlock, error) {
 	err := db.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(lastBlockBucket)
 		lastBlockHash := b.Get(lastBlockKey)
+		if len(lastBlockHash) == 0 {
+			return sync.ErrNotFound
+		}
 
 		prevToNext := tx.Bucket(prevToNextBucket)
 		for {
 			nextBlockHash := prevToNext.Get(lastBlockHash)
 			if len(nextBlockHash) != 0 {
+				fmt.Printf("set another last block from %x to %x\n", lastBlockKey, nextBlockHash)
 				lastBlockHash = nextBlockHash
 				continue
 			}
+			log.Printf("REAL last block in DB is: %x\n", p2p.Reverse([32]byte(lastBlockHash)))
 			break
 		}
 
@@ -92,7 +98,7 @@ func (db *BlocksRepo) Get(hash [32]byte) (p2p.MsgBlock, error) {
 		b := tx.Bucket(blockBucket)
 		data := b.Get(hash[:])
 		if data == nil {
-			return fmt.Errorf("block not found")
+			return sync.ErrNotFound
 		}
 		return json.Unmarshal(data, &block)
 	})

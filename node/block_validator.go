@@ -38,18 +38,19 @@ func (bv BlockValidator) Validate(bl *p2p.MsgBlock) error {
 }
 
 func (bv BlockValidator) lastBlockHashMustBePreviousForTheCurrentOne(bl *p2p.MsgBlock) error {
-	var lastBlockHash [32]byte
+	lastBlockHash := [32]byte{}
 	lastBlock, err := bv.blockRepo.GetLast()
 	if err != nil {
+		log.Println("ERRRRRR when get lat block in validate block:", err)
 		if !errors.Is(err, sync.ErrNotFound) {
 			return err
 		}
-		lastBlockHash = zero
+		log.Println("Set last block to zero")
 	} else {
 		lastBlockHash = lastBlock.GetHash()
 	}
 
-	if bl.PrevBlockHash != lastBlockHash {
+	if bl.PrevBlockHash != lastBlockHash && lastBlockHash != [32]byte{} {
 		log.Printf("last block in DB is not the prev of the current one: %x\n", p2p.Reverse(lastBlockHash))
 	} else {
 		log.Println("Last block in DB is the prvious one before the this that wil be tored")

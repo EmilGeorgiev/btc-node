@@ -57,14 +57,32 @@ func (mh *MsgBlockHandler) Stop() {
 func (mh *MsgBlockHandler) handleMsgBlock() {
 	var currentBlockIndex int
 	var expectedHeaders sync.RequestedHeaders
+	var nextBlockHeader p2p.BlockHeader
 	for {
 		select {
 		case <-mh.stop:
 			mh.done <- struct{}{}
 			return
 		case expectedHeaders = <-mh.expectedBlockHeaders:
-			log.Printf("Set expected headers in BlockHandler.  len: %d\n", len(expectedHeaders.BlockHeaders))
+			if len(expectedHeaders.BlockHeaders) > 0 {
+				nextBlockHeader = expectedHeaders.BlockHeaders[0]
+				log.Printf("Set expected headers in BlockHandler.  len: %d\n", len(expectedHeaders.BlockHeaders))
+				log.Printf("First block hash in exp headers is: %x\n", p2p.Reverse(Hash(expectedHeaders.BlockHeaders[0])))
+				log.Printf("Prev before exp headers is: %x\n", p2p.Reverse(expectedHeaders.BlockHeaders[0].PrevBlockHash))
+			}
+
 		case block := <-mh.blocks:
+			log.Printf("Handle new block: %x\n", p2p.Reverse(block.GetHash()))
+			if Hash(nextBlockHeader) != block.GetHash() {
+				log.Printf("unexpected block: %x\n", p2p.Reverse(block.GetHash()))
+				log.Printf("Expected block is: %x\n", p2p.Reverse(Hash(nextBlockHeader)))
+				continue
+			}
+			currentBlockIndex++
+			if currentBlockIndex < len(expectedHeaders.BlockHeaders) {
+				nextBlockHeader = expectedHeaders.BlockHeaders[currentBlockIndex]
+			}
+
 			log.Println("validate block")
 			if err := mh.blockValidator.Validate(block); err != nil {
 				log.Printf("block is not valid: %s ", err)
@@ -77,7 +95,6 @@ func (mh *MsgBlockHandler) handleMsgBlock() {
 				continue
 			}
 
-			currentBlockIndex++
 			if currentBlockIndex >= len(expectedHeaders.BlockHeaders) {
 				log.Printf("current block index: %d is >= len(expectedHeaders): %d\n", currentBlockIndex, len(expectedHeaders.BlockHeaders))
 				log.Println("Notify PeerSync to send new requests headers")

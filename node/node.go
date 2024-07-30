@@ -144,21 +144,16 @@ func (n *Node) Stop() {
 	log.Println("Stop Node.")
 	close(n.stop)
 	n.wg.Wait()
-	log.Println("Stop Node. 111111111")
 	n.peerChain.Range(func(key, value any) bool {
-		log.Println("Stop Node. 222222")
 		pch := value.(PeerChain)
 		pch.peer.Stop()
-		log.Println("Stop Node.3333333")
 		return true
 	})
-	log.Println("Stop Node.444444")
 	log.Println("all goroutines are stopped")
 }
 
 func (n *Node) reconnectToPeer(addr common.Addr) {
 	defer n.wg.Done()
-	log.Println("START Reconnect to peer", addr.String())
 	seconds := 4
 	timer := time.NewTimer(time.Duration(seconds) * time.Second)
 	for {
@@ -167,6 +162,7 @@ func (n *Node) reconnectToPeer(addr common.Addr) {
 			log.Println("Stop reconnect logic")
 			return
 		case <-timer.C:
+			log.Println("Try to Reconnect to peer: ", addr.String())
 			if err := n.connectToPeer(addr); err == nil {
 				log.Println("Stop reconnect logic becasue connect success")
 				return
