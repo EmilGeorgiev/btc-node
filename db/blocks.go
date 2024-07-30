@@ -6,7 +6,6 @@ import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"github.com/EmilGeorgiev/btc-node/sync"
 	bolt "go.etcd.io/bbolt"
-	"log"
 )
 
 var (
@@ -66,7 +65,6 @@ func (db *BlocksRepo) GetLast() (p2p.MsgBlock, error) {
 		b := tx.Bucket(lastBlockBucket)
 		lastBlockHash := b.Get(lastBlockKey)
 
-		log.Printf("check whether the block hash is realy thelast one %x\n", p2p.Reverse(lastBlockHash[:]))
 		prevToNext := tx.Bucket(prevToNextBucket)
 		for {
 			nextBlockHash := prevToNext.Get(lastBlockHash)
@@ -76,7 +74,6 @@ func (db *BlocksRepo) GetLast() (p2p.MsgBlock, error) {
 			}
 			break
 		}
-		log.Printf("after the check, the real last block is %x\n", p2p.Reverse(lastBlockHash[:]))
 
 		bl := tx.Bucket(blockBucket)
 		data := bl.Get(lastBlockHash)

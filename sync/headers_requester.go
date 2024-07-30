@@ -51,7 +51,7 @@ func (cs HeadersRequester) RequestHeadersFromLastBlock() error {
 		return errors.Join(ErrFailedToCreateMsgGetHeaders, err)
 	}
 
-	log.Printf("Find the Last processed block in DB and send it to msg headers handlers: %x\n", p2p.Reverse(blockHash[:]))
+	log.Printf("Find the Last processed block in DB and send it to msg headers handlers: %x\n", p2p.Reverse(blockHash))
 	cs.expectedHashes <- blockHash
 	cs.outgoingMsgs <- gh
 	return nil

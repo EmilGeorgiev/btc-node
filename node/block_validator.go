@@ -50,7 +50,7 @@ func (bv BlockValidator) lastBlockHashMustBePreviousForTheCurrentOne(bl *p2p.Msg
 	}
 
 	if bl.PrevBlockHash != lastBlockHash {
-		log.Printf("last block in DB is not the prev of the current one: %x\n", p2p.Reverse(lastBlockHash[:]))
+		log.Printf("last block in DB is not the prev of the current one: %x\n", p2p.Reverse(lastBlockHash))
 	} else {
 		log.Println("Last block in DB is the prvious one before the this that wil be tored")
 	}
@@ -68,8 +68,7 @@ func BitsToTarget(bits uint32) *big.Int {
 
 // ValidateBlockHash ...
 func blockHashLessThanTargetDifficulty(headers *p2p.BlockHeader) bool {
-	hash := Hash(*headers)
-	hashBig := new(big.Int).SetBytes(p2p.Reverse(hash[:]))
+	hashBig := new(big.Int).SetBytes(p2p.Reverse(Hash(*headers)))
 	target := BitsToTarget(headers.Bits)
 
 	return hashBig.Cmp(target) <= 0

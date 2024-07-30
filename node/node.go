@@ -81,7 +81,11 @@ func (n *Node) Start() {
 func (n *Node) getChainOverview(pch PeerChain) {
 	defer n.wg.Done()
 	log.Println("Initialize getChainOverview from Node")
-	overviewCh := pch.peer.GetChainOverview()
+	overviewCh, err := pch.peer.GetChainOverview()
+	if err != nil {
+		log.Println("Receive an error from GetChainOverview:", err)
+		return
+	}
 	for {
 		select {
 		case <-n.stop:

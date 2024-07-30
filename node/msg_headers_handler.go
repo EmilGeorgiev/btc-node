@@ -76,7 +76,7 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			mh.done <- struct{}{}
 			return
 		case expPrevBlockHash = <-mh.expectedStartFromHash:
-			log.Printf("set expPrevBlockhash: %x\n", p2p.Reverse(expPrevBlockHash[:]))
+			log.Printf("set expPrevBlockhash: %x\n", p2p.Reverse(expPrevBlockHash))
 		case msgH := <-mh.headers: // handle MsgHeaders
 			headers := msgH.BlockHeaders
 			if len(headers) == 0 {
@@ -88,19 +88,16 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 
 			if expPrevBlockHash != headers[0].PrevBlockHash {
 				log.Println("The current Headers are not requested and will be scipped")
-				log.Printf("expected prev block hash: %x\n", p2p.Reverse(expPrevBlockHash[:]))
-				h := headers[0].PrevBlockHash
-				log.Printf("actual prev block hash: %x\n", p2p.Reverse(h[:]))
+				log.Printf("expected prev block hash: %x\n", p2p.Reverse(expPrevBlockHash))
+				log.Printf("actual prev block hash: %x\n", p2p.Reverse(headers[0].PrevBlockHash))
 				continue
 			}
 
 			cumulPoW, isValid := ValidateChain(msgH.BlockHeaders)
 			if !isValid {
 				lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
-				log.Printf("headers chain is not valid ; %x\n", p2p.Reverse(lastBlockHash[:]))
+				log.Printf("headers chain is not valid ; %x\n", p2p.Reverse(lastBlockHash))
 				mh.headersOverviews <- sync.RequestedHeaders{
-					LastBlockHash: lastBlockHash,
-					HeadersCount:  int64(len(msgH.BlockHeaders)),
 					CumulativePoW: cumulPoW,
 					IsValid:       false,
 				}
@@ -115,11 +112,8 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			msgGetdata := p2p.MsgGetData{Count: p2p.VarInt(len(headers)), Inventory: inv}
 			msg, _ := p2p.NewMessage(p2p.CmdGetdata, mh.network, msgGetdata)
 			log.Println("Send Get Data With ", msgGetdata.Count)
-			lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
 			mh.headersOverviews <- sync.RequestedHeaders{
 				BlockHeaders:  headers,
-				LastBlockHash: lastBlockHash,
-				HeadersCount:  int64(len(msgH.BlockHeaders)),
 				CumulativePoW: cumulPoW,
 				IsValid:       true,
 			}
@@ -139,14 +133,13 @@ func ValidateChain(headers []p2p.BlockHeader) (*big.Int, bool) {
 	for i := 1; i < len(headers); i++ {
 		if headers[i].PrevBlockHash != Hash(headers[i-1]) {
 			h := headers[i].PrevBlockHash
-			log.Printf("block's previous block hash is different. prev block hash: %x\n", p2p.Reverse(h[:]))
+			log.Printf("block's previous block hash is different. prev block hash: %x\n", p2p.Reverse(h))
 			//log.Printf("prev: %x current %x", p2p.Reverse(headers[i].PrevBlockHash), p2p.Reverse(Hash(headers[i-1])[:]))
 			return nil, false
 		}
 		if !blockHashLessThanTargetDifficulty(&headers[i]) {
-			hash := Hash(headers[i])
 			log.Println("block hash is greather than target difficulty:")
-			log.Printf("Hash %x\n", p2p.Reverse(hash[:]))
+			log.Printf("Hash %x\n", p2p.Reverse(Hash(headers[i])))
 			log.Println("Bits:", headers[i].Bits)
 			return nil, false
 		}
