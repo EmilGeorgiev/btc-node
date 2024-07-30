@@ -70,12 +70,12 @@ func (n *Node) Start() {
 		}
 	}
 
-	n.peerChain.Range(func(key, value any) bool {
-		n.wg.Add(1)
-		pch := value.(PeerChain)
-		go n.getChainOverview(pch)
-		return true
-	})
+	//n.peerChain.Range(func(key, value any) bool {
+	//	n.wg.Add(1)
+	//	pch := value.(PeerChain)
+	//	go n.getChainOverview(pch)
+	//	return true
+	//})
 }
 
 func (n *Node) getChainOverview(pch PeerChain) {
@@ -184,8 +184,13 @@ func (n *Node) connectToPeer(addr common.Addr) error {
 	}
 
 	pcm := n.newServerPeer(handshake.Peer, n.errors)
-	n.peerChain.Store(addr.String(), PeerChain{peer: pcm})
+	pch := PeerChain{peer: pcm}
+	n.peerChain.Store(addr.String(), pch)
 	pcm.Start()
+
+	n.wg.Add(1)
+	go n.getChainOverview(pch)
+
 	return nil
 }
 

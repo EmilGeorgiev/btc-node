@@ -13,14 +13,14 @@ type MsgBlockHandler struct {
 	blockValidator         sync.BlockValidator
 	stop                   chan struct{}
 	blocks                 <-chan *p2p.MsgBlock
-	notifyProcessedHeaders chan<- struct{}
+	notifyProcessedHeaders chan<- sync.RequestedHeaders
 	done                   chan struct{}
 	isStarted              atomic.Bool
-	expectedBlockHeaders   <-chan []p2p.BlockHeader
+	expectedBlockHeaders   <-chan sync.RequestedHeaders
 }
 
 func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks <-chan *p2p.MsgBlock,
-	processed chan<- struct{}, expBlockHeaders <-chan []p2p.BlockHeader) *MsgBlockHandler {
+	processed chan<- sync.RequestedHeaders, expBlockHeaders <-chan sync.RequestedHeaders) *MsgBlockHandler {
 	return &MsgBlockHandler{
 		blockRepository:        br,
 		blockValidator:         bv,
@@ -34,68 +34,58 @@ func NewMsgBlockHandler(br sync.BlockRepository, bv sync.BlockValidator, blocks 
 }
 
 func (mh *MsgBlockHandler) Start() {
-	log.Println("START MsgBlockhandler")
 	if mh.isStarted.Load() {
-		log.Println("START MsgBlockhandler 11111111")
+		log.Println("MsgBlockHandler is already started.")
 		return
 	}
-	log.Println("START MsgBlockhandler 2222222")
 	mh.isStarted.Store(true)
-	log.Println("START MsgBlockhandler 33333333")
 	go mh.handleMsgBlock()
-	log.Println("START MsgBlockhandler 4444444444")
+	log.Println("START MsgBlockHandler")
 }
 
 func (mh *MsgBlockHandler) Stop() {
-	log.Println("Stop MsgBlockhandler")
 	if !mh.isStarted.Load() {
-		log.Println("Stop MsgBlockhandler 1111111111")
+		log.Println("MsgBlockHandler is not started and can't be stopped.")
 		return
 	}
-	log.Println("Stop MsgBlockhandler 2222222")
 	mh.isStarted.Store(false)
-	log.Println("Stop MsgBlockhandler 333333")
 	mh.stop <- struct{}{}
-	log.Println("Stop MsgBlockhandler 44444444")
 	<-mh.done
-	log.Println("Stop MsgBlockhandler 55555555555")
+	log.Println("Stop MsgBlockHandler")
 }
 
 func (mh *MsgBlockHandler) handleMsgBlock() {
 	var currentBlockIndex int
-	var expectedHeaders []p2p.BlockHeader
+	var expectedHeaders sync.RequestedHeaders
 	for {
 		select {
 		case <-mh.stop:
-			log.Println("stop MsgBlockHandler")
 			mh.done <- struct{}{}
 			return
 		case expectedHeaders = <-mh.expectedBlockHeaders:
+			log.Printf("Set expected headers in BlockHandler.  len: %d\n", len(expectedHeaders.BlockHeaders))
 		case block := <-mh.blocks:
 			log.Println("validate block")
 			if err := mh.blockValidator.Validate(block); err != nil {
-				log.Printf("block is not valid: %s", err)
+				log.Printf("block is not valid: %s ", err)
 				continue
 			}
-			log.Println("save block: ", p2p.Reverse(block.PrevBlockHash[:]))
+
+			log.Printf("save block: %x\n", p2p.Reverse(block.GetHash()))
 			if err := mh.blockRepository.Save(*block); err != nil {
 				log.Println("failed to save block: ", err)
 				continue
 			}
 
 			currentBlockIndex++
-			if currentBlockIndex >= len(expectedHeaders) {
+			if currentBlockIndex >= len(expectedHeaders.BlockHeaders) {
+				log.Printf("current block index: %d is >= len(expectedHeaders): %d\n", currentBlockIndex, len(expectedHeaders.BlockHeaders))
+				log.Println("Notify PeerSync to send new requests headers")
 				currentBlockIndex = 0
-				expectedHeaders = nil
-				mh.notifyProcessedHeaders <- struct{}{}
+				mh.notifyProcessedHeaders <- expectedHeaders
+				expectedHeaders = sync.RequestedHeaders{}
+
 			}
 		}
 	}
 }
-
-//func nextBlock(headers []p2p.BlockHeader, i int) [32]byte {
-//	if i >= len(headers) {
-//		return [32]byte{}
-//	}
-//	return Hash(headers[i])
-//}

@@ -125,3 +125,34 @@ func reverseBytes(data []byte) []byte {
 	}
 	return reversed
 }
+
+func TestBlockRepo_GetLaock(t *testing.T) {
+	dbPath := "/tmp/my.db"
+	db, err := NewBoltDB(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo, err := NewBlockRepo(db.DB)
+	require.NoError(t, err)
+
+	actual, err := repo.GetLast()
+	require.NoError(t, err)
+
+	h := actual.GetHash()
+	fmt.Printf("1Last block in DB is %x\n", p2p.Reverse(h[:]))
+
+	block, err := repo.Get(actual.PrevBlockHash)
+	require.NoError(t, err)
+	h = block.GetHash()
+	fmt.Printf("2 Previous block is: %x\n", p2p.Reverse(h[:]))
+
+	block, err = repo.Get(block.PrevBlockHash)
+	require.NoError(t, err)
+	h = block.GetHash()
+	fmt.Printf("3 Previous block is: %x\n", p2p.Reverse(h[:]))
+
+	block, err = repo.Get(block.PrevBlockHash)
+	require.NoError(t, err)
+	h = block.GetHash()
+	fmt.Printf("4 Previous block is: %x\n", p2p.Reverse(h[:]))
+}

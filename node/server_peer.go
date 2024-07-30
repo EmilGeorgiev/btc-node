@@ -26,21 +26,24 @@ type ServerPeer struct {
 	peer                  p2p.Peer
 	outgoingMsgs          chan *p2p.Message
 	errors                chan<- PeerErr
-	isStarted             atomic.Bool
-	isSyncStarted         atomic.Bool
 	network               string
-	mode                  Mode
-
+	//mode                  Mode
+	mode       atomic.Int64
 	msgHeaders chan<- *p2p.MsgHeaders
-	msgBlocks  chan<- *p2p.MsgBlock
 
-	stop chan struct{}
-	wg   sync.WaitGroup
+	msgBlocks chan<- *p2p.MsgBlock
+	stop      chan struct{}
+
+	wg sync.WaitGroup
+
+	isStarted atomic.Bool
+	//isSyncStarted         atomic.Bool
+	//isOverviewStarted      atomic.Bool
 }
 
 func NewServerPeer(network string, mhm MsgHandlersManager, ps SyncManager, nmh NetworkMessageHandler, p p2p.Peer,
 	out chan *p2p.Message, e chan<- PeerErr, h chan<- *p2p.MsgHeaders, b chan<- *p2p.MsgBlock) *ServerPeer {
-	return &ServerPeer{
+	sp := &ServerPeer{
 		network:               network,
 		msgHandlersManager:    mhm,
 		peerSync:              ps,
@@ -51,94 +54,66 @@ func NewServerPeer(network string, mhm MsgHandlersManager, ps SyncManager, nmh N
 		msgHeaders:            h,
 		msgBlocks:             b,
 		stop:                  make(chan struct{}, 1),
-		mode:                  Overview,
 	}
+	sp.mode.Store(int64(Overview))
+	return sp
 }
 
 func (sp *ServerPeer) Start() {
-	log.Println("Start server peer")
 	if sp.isStarted.Load() {
+		log.Println("ServerPeer is already started.")
 		return
 	}
-	log.Println("Start server peer 111111")
 	sp.isStarted.Store(true)
-	log.Println("Start server peer 2222222")
-	sp.msgHandlersManager.Start()
-	log.Println("Start server peer 33333333")
+	sp.msgHandlersManager.StartOverviewHandlers()
 	sp.wg.Add(2)
 	go sp.handleIncomingMsgs(&sp.wg)
-	log.Println("Start server peer 4444444")
 	go sp.handOutgoingMsgs(&sp.wg)
-	log.Println("Start server peer 5555")
-	//sp.peerSync.Start()
-	log.Println("Start server peer 666666")
-}
-
-func (sp *ServerPeer) Sync() {
-	panic("implement me sync")
-}
-
-func (sp *ServerPeer) StopSync() {
-	panic("implement me StopSync")
+	log.Println("Start ServerPeer.")
 }
 
 func (sp *ServerPeer) GetPeerAddr() string {
 	return sp.peer.Address
 }
 
-func (sp *ServerPeer) GetChainOverview() <-chan common.ChainOverview {
+func (sp *ServerPeer) GetChainOverview() (<-chan common.ChainOverview, error) {
 	ch := make(chan common.ChainOverview, 1)
-
-	sp.mode = Overview
-	sp.peerSync.GetChainOverview(sp.peer.Address, ch)
-
-	return ch
+	sp.mode.Store(int64(Overview))
+	sp.peerSync.StartChainOverview(sp.peer.Address, ch)
+	return ch, nil
 }
 
-//func (sp *ServerPeer) Sync() {
-//	if !sp.isStarted.Load() {
-//		log.Println("server peer not started")
-//		return
-//	}
-//	if sp.isSyncStarted.Load() {
-//		return
-//	}
-//	sp.isSyncStarted.Store(true)
-//	sp.peerSync.Start()
-//}
+func (sp *ServerPeer) Sync() {
+	//if !sp.isStarted.Load() {
+	//	log.Println("server peer not started")
+	//	return
+	//}
+	//if sp.isSyncStarted.Load() {
+	//	log.Println("sync process with this peer is already started.")
+	//	return
+	//}
+	//sp.isSyncStarted.Store(true)
+	sp.mode.Store(int64(Standard))
+	sp.peerSync.Start()
+}
 
-//func (sp *ServerPeer) StopSync() {
-//	if !sp.isSyncStarted.Load() {
-//		return
-//	}
-//	sp.isSyncStarted.Store(false)
-//	sp.peerSync.Stop()
-//}
+func (sp *ServerPeer) StopSync() {
+	sp.peerSync.Stop()
+}
 
 func (sp *ServerPeer) Stop() {
-	log.Println("stop server peer")
 	if !sp.isStarted.Load() {
+		log.Println("Can't stop ServerPeer because it is not started.")
 		return
 	}
 	sp.isStarted.Store(false)
-	log.Println("stop server peer 1111111")
 	sp.peerSync.Stop()
 	close(sp.stop)
-	log.Println("stop server peer 222222")
-
-	log.Println("stop server peer 333333")
 	sp.msgHandlersManager.Stop()
-	log.Println("stop server peer 4444")
-
 	sp.wg.Wait()
-	log.Println("stop server peer 5555555")
 	err := sp.peer.Connection.Close()
-	log.Println("stop server peer 66666: ", err)
+	log.Println("Stop ServerPeer:", err)
 }
-
-//func (sp *ServerPeer) GetPeerAddr() string {
-//	return sp.peer.Address
-//}
 
 type PeerErr struct {
 	Peer p2p.Peer
@@ -167,7 +142,7 @@ func (sp *ServerPeer) handleIncomingMsgs(wg *sync.WaitGroup) {
 					Err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
 				}
 
-				fmt.Println("server peer stop itself")
+				log.Println("server peer stop itself")
 				go sp.Stop()
 				return
 			}
@@ -188,7 +163,7 @@ func (sp *ServerPeer) handOutgoingMsgs(wg *sync.WaitGroup) {
 			return
 		case msg := <-sp.outgoingMsgs:
 
-			if sp.mode == Overview && msg.CommandString() != p2p.CmdGetheaders && msg.CommandString() != p2p.CmdPong {
+			if sp.mode.Load() == int64(Overview) && msg.CommandString() != p2p.CmdGetheaders && msg.CommandString() != p2p.CmdPong {
 				continue
 			}
 			log.Println("send outgoin message:", msg.MessageHeader.CommandString())
@@ -221,7 +196,7 @@ func (sp *ServerPeer) handleMessage(msg interface{}) {
 	case *p2p.MsgHeaders:
 		sp.msgHeaders <- msg.(*p2p.MsgHeaders)
 	case *p2p.MsgBlock:
-		if sp.mode == Overview {
+		if sp.mode.Load() == int64(Overview) {
 			return
 		}
 		sp.msgBlocks <- msg.(*p2p.MsgBlock)

@@ -2,8 +2,8 @@ package sync
 
 import (
 	"errors"
-	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
+	"log"
 )
 
 var genesisBlockHashHex = "6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000"
@@ -38,7 +38,6 @@ func NewHeadersRequester(n string, br BlockRepository, out chan<- *p2p.Message, 
 }
 
 func (cs HeadersRequester) RequestHeadersFromLastBlock() error {
-	fmt.Println("In request header")
 	block, err := cs.blockRepository.GetLast()
 	var blockHash [32]byte
 	if err != nil {
@@ -52,6 +51,7 @@ func (cs HeadersRequester) RequestHeadersFromLastBlock() error {
 		return errors.Join(ErrFailedToCreateMsgGetHeaders, err)
 	}
 
+	log.Printf("Find the Last processed block in DB and send it to msg headers handlers: %x\n", p2p.Reverse(blockHash[:]))
 	cs.expectedHashes <- blockHash
 	cs.outgoingMsgs <- gh
 	return nil

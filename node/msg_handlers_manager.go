@@ -2,27 +2,21 @@ package node
 
 import (
 	"log"
-	"sync/atomic"
 )
 
 type MessageHandlersManager struct {
-	msgHandlers []StartStop
-	isStarted   atomic.Bool
+	msgHandlers      []StartStop
+	OverviewHandlers []StartStop
 }
 
-func NewMessageHandlersManager(handlers []StartStop) *MessageHandlersManager {
+func NewMessageHandlersManager(handlers []StartStop, overviewHandlers []StartStop) *MessageHandlersManager {
 	return &MessageHandlersManager{
-		msgHandlers: handlers,
+		msgHandlers:      handlers,
+		OverviewHandlers: overviewHandlers,
 	}
 }
 
 func (m *MessageHandlersManager) Start() {
-	log.Println("Start Managerhandlers")
-	if m.isStarted.Load() {
-		return
-	}
-	log.Println("Start Managerhandlers 1111111111")
-	m.isStarted.Store(true)
 	for _, h := range m.msgHandlers {
 		log.Printf("Start Managerhandlers' Handler of <type: %T\n", h)
 		h.Start()
@@ -30,14 +24,15 @@ func (m *MessageHandlersManager) Start() {
 }
 
 func (m *MessageHandlersManager) Stop() {
-	log.Println("Stop Managerhandlers")
-	if !m.isStarted.Load() {
-		return
-	}
-	log.Println("Stop Managerhandlers 1111111111")
-	m.isStarted.Store(false)
 	for _, h := range m.msgHandlers {
 		log.Printf("Stop Managerhandlers' handler of type: %T\n", h)
 		h.Stop()
+	}
+}
+
+func (m *MessageHandlersManager) StartOverviewHandlers() {
+	for _, h := range m.OverviewHandlers {
+		log.Printf("Start Managerhandlers' Handler of <type>: %T\n", h)
+		h.Start()
 	}
 }

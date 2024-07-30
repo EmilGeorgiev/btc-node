@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
-	"log"
 )
 
 type MsgTx struct {
@@ -179,7 +178,7 @@ func (txin *TxInput) UnmarshalBinary(r io.Reader) error {
 	}
 
 	if txin.ScriptLength != 0 {
-		log.Println("txin.ScriptLength: ", txin.ScriptLength)
+		//log.Println("txin.ScriptLength: ", txin.ScriptLength)
 		txin.SignatureScript = make([]byte, txin.ScriptLength)
 		n, err := io.LimitReader(r, int64(txin.ScriptLength)).Read(txin.SignatureScript)
 		if err != nil {

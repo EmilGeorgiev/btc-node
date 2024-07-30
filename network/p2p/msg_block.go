@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
-	"log"
 )
 
 type MsgBlock struct {
@@ -46,8 +45,8 @@ func (mb *MsgBlock) UnmarshalBinary(r io.Reader) error {
 		return err
 	}
 
-	hash := mb.GetHash()
-	log.Printf("Block HASH-HASH-HASH-HASH that failed: %x\n The prev block hash is: %x\n", Reverse(hash[:]), Reverse(mb.PrevBlockHash[:]))
+	//hash := mb.GetHash()
+	//log.Printf("Block HASH-HASH-HASH-HASH that failed: %x\n The prev block hash is: %x\n", Reverse(hash[:]), Reverse(mb.PrevBlockHash[:]))
 
 	//count++
 	//if count == 20 {
@@ -73,7 +72,7 @@ func (mb *MsgBlock) GetHash() [32]byte {
 	return sha256.Sum256(firstHash[:])
 }
 
-func Reverse(input []byte) []byte {
+func Reverse(input [32]byte) []byte {
 	l := len(input)
 	reversed := make([]byte, l)
 	for i, n := range input {

@@ -21,11 +21,11 @@ type MsgHeadersHandler struct {
 	stop                  chan struct{}
 	done                  chan struct{}
 	isStarted             atomic.Bool
-	headersOverviews      chan<- sync.HeadersOverview //[]p2p.BlockHeader
+	headersOverviews      chan<- sync.RequestedHeaders //[]p2p.BlockHeader
 }
 
 func NewMsgHeaderHandler(n string, out chan<- *p2p.Message, h <-chan *p2p.MsgHeaders,
-	expectedStartFromHash <-chan [32]byte, syncCompl chan struct{}, headersOverviews chan<- sync.HeadersOverview) *MsgHeadersHandler {
+	expectedStartFromHash <-chan [32]byte, syncCompl chan struct{}, headersOverviews chan<- sync.RequestedHeaders) *MsgHeadersHandler {
 	return &MsgHeadersHandler{
 		network:               n,
 		outgoingMsgs:          out,
@@ -76,12 +76,13 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			mh.done <- struct{}{}
 			return
 		case expPrevBlockHash = <-mh.expectedStartFromHash:
+			log.Printf("set expPrevBlockhash: %x\n", p2p.Reverse(expPrevBlockHash[:]))
 		case msgH := <-mh.headers: // handle MsgHeaders
 			headers := msgH.BlockHeaders
 			if len(headers) == 0 {
 				log.Println("complete sync")
 				//mh.syncCompleted <- struct{}{}
-				mh.headersOverviews <- sync.HeadersOverview{IsValid: true}
+				mh.headersOverviews <- sync.RequestedHeaders{IsValid: true}
 				continue
 			}
 
@@ -97,7 +98,7 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			if !isValid {
 				lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
 				log.Printf("headers chain is not valid ; %x\n", p2p.Reverse(lastBlockHash[:]))
-				mh.headersOverviews <- sync.HeadersOverview{
+				mh.headersOverviews <- sync.RequestedHeaders{
 					LastBlockHash: lastBlockHash,
 					HeadersCount:  int64(len(msgH.BlockHeaders)),
 					CumulativePoW: cumulPoW,
@@ -115,7 +116,8 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 			msg, _ := p2p.NewMessage(p2p.CmdGetdata, mh.network, msgGetdata)
 			log.Println("Send Get Data With ", msgGetdata.Count)
 			lastBlockHash := Hash(msgH.BlockHeaders[len(msgH.BlockHeaders)-1])
-			mh.headersOverviews <- sync.HeadersOverview{
+			mh.headersOverviews <- sync.RequestedHeaders{
+				BlockHeaders:  headers,
 				LastBlockHash: lastBlockHash,
 				HeadersCount:  int64(len(msgH.BlockHeaders)),
 				CumulativePoW: cumulPoW,
