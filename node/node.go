@@ -10,6 +10,7 @@ import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
 
+// Node is a central part in the program that hold reference to all Peer and manage communication with them.
 type Node struct {
 	newServerPeer          func(p2p.Peer, chan PeerErr) PeerConnectionManager
 	network                string
@@ -27,7 +28,7 @@ type Node struct {
 	notifySyncForError chan PeerErr
 }
 
-// New returns a new Node.
+// New initialize and return a new Node.
 func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) PeerConnectionManager,
 	peerAddr []common.Addr, err chan PeerErr, sf chan struct{}, hm HandshakeManager, w time.Duration, recWait time.Duration) (*Node, error) {
 	_, ok := p2p.Networks[network]
@@ -52,6 +53,8 @@ func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) P
 	}, nil
 }
 
+// Start this method initialize a connections to all the peers provided in a list.
+// Then it scan network in these peers and choose the one with the greatest cumulative PoW.
 func (n *Node) Start() {
 	log.Println("Start Node.")
 	if len(n.peerAddrs) == 0 {
@@ -70,9 +73,10 @@ func (n *Node) Start() {
 	}
 }
 
+// getChainOverview get overview ( number of blocks, whether the blocks are valid and so others) of the chain of the current peer.
 func (n *Node) getChainOverview(pch PeerChain) {
 	defer n.wg.Done()
-	log.Println("Initialize getChainOverview from Node")
+	log.Println("Get Overview of the peer's chain: ", pch.peer.GetPeerAddr())
 	overviewCh, err := pch.peer.GetChainOverview()
 	if err != nil {
 		log.Println("Receive an error from GetChainOverview:", err)
