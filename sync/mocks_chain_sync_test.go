@@ -200,6 +200,20 @@ func (m *MockHeaderRequester) EXPECT() *MockHeaderRequesterMockRecorder {
 	return m.recorder
 }
 
+// RequestHeadersFromBlockHash mocks base method.
+func (m *MockHeaderRequester) RequestHeadersFromBlockHash(arg0 [32]byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestHeadersFromBlockHash", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RequestHeadersFromBlockHash indicates an expected call of RequestHeadersFromBlockHash.
+func (mr *MockHeaderRequesterMockRecorder) RequestHeadersFromBlockHash(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestHeadersFromBlockHash", reflect.TypeOf((*MockHeaderRequester)(nil).RequestHeadersFromBlockHash), arg0)
+}
+
 // RequestHeadersFromLastBlock mocks base method.
 func (m *MockHeaderRequester) RequestHeadersFromLastBlock() error {
 	m.ctrl.T.Helper()
@@ -342,7 +356,7 @@ func (m *MockBlockValidator) EXPECT() *MockBlockValidatorMockRecorder {
 }
 
 // Validate mocks base method.
-func (m *MockBlockValidator) Validate(arg0 p2p.MsgBlock) error {
+func (m *MockBlockValidator) Validate(arg0 *p2p.MsgBlock) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Validate", arg0)
 	ret0, _ := ret[0].(error)
