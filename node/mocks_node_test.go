@@ -217,6 +217,124 @@ func (mr *MockStartStopMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockStartStop)(nil).Stop))
 }
 
+// MockMsgHandlersManager is a mock of MsgHandlersManager interface.
+type MockMsgHandlersManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockMsgHandlersManagerMockRecorder
+}
+
+// MockMsgHandlersManagerMockRecorder is the mock recorder for MockMsgHandlersManager.
+type MockMsgHandlersManagerMockRecorder struct {
+	mock *MockMsgHandlersManager
+}
+
+// NewMockMsgHandlersManager creates a new mock instance.
+func NewMockMsgHandlersManager(ctrl *gomock.Controller) *MockMsgHandlersManager {
+	mock := &MockMsgHandlersManager{ctrl: ctrl}
+	mock.recorder = &MockMsgHandlersManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMsgHandlersManager) EXPECT() *MockMsgHandlersManagerMockRecorder {
+	return m.recorder
+}
+
+// Start mocks base method.
+func (m *MockMsgHandlersManager) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockMsgHandlersManagerMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockMsgHandlersManager)(nil).Start))
+}
+
+// StartOverviewHandlers mocks base method.
+func (m *MockMsgHandlersManager) StartOverviewHandlers() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "StartOverviewHandlers")
+}
+
+// StartOverviewHandlers indicates an expected call of StartOverviewHandlers.
+func (mr *MockMsgHandlersManagerMockRecorder) StartOverviewHandlers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartOverviewHandlers", reflect.TypeOf((*MockMsgHandlersManager)(nil).StartOverviewHandlers))
+}
+
+// Stop mocks base method.
+func (m *MockMsgHandlersManager) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockMsgHandlersManagerMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMsgHandlersManager)(nil).Stop))
+}
+
+// MockSyncManager is a mock of SyncManager interface.
+type MockSyncManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockSyncManagerMockRecorder
+}
+
+// MockSyncManagerMockRecorder is the mock recorder for MockSyncManager.
+type MockSyncManagerMockRecorder struct {
+	mock *MockSyncManager
+}
+
+// NewMockSyncManager creates a new mock instance.
+func NewMockSyncManager(ctrl *gomock.Controller) *MockSyncManager {
+	mock := &MockSyncManager{ctrl: ctrl}
+	mock.recorder = &MockSyncManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSyncManager) EXPECT() *MockSyncManagerMockRecorder {
+	return m.recorder
+}
+
+// Start mocks base method.
+func (m *MockSyncManager) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockSyncManagerMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSyncManager)(nil).Start))
+}
+
+// StartChainOverview mocks base method.
+func (m *MockSyncManager) StartChainOverview(peerAddr string, cho chan common.ChainOverview) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "StartChainOverview", peerAddr, cho)
+}
+
+// StartChainOverview indicates an expected call of StartChainOverview.
+func (mr *MockSyncManagerMockRecorder) StartChainOverview(peerAddr, cho interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartChainOverview", reflect.TypeOf((*MockSyncManager)(nil).StartChainOverview), peerAddr, cho)
+}
+
+// Stop mocks base method.
+func (m *MockSyncManager) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockSyncManagerMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSyncManager)(nil).Stop))
+}
+
 // MockPeerConnectionManager is a mock of PeerConnectionManager interface.
 type MockPeerConnectionManager struct {
 	ctrl     *gomock.Controller
@@ -238,6 +356,21 @@ func NewMockPeerConnectionManager(ctrl *gomock.Controller) *MockPeerConnectionMa
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPeerConnectionManager) EXPECT() *MockPeerConnectionManagerMockRecorder {
 	return m.recorder
+}
+
+// GetChainOverview mocks base method.
+func (m *MockPeerConnectionManager) GetChainOverview() (<-chan common.ChainOverview, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChainOverview")
+	ret0, _ := ret[0].(<-chan common.ChainOverview)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetChainOverview indicates an expected call of GetChainOverview.
+func (mr *MockPeerConnectionManagerMockRecorder) GetChainOverview() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainOverview", reflect.TypeOf((*MockPeerConnectionManager)(nil).GetChainOverview))
 }
 
 // GetPeerAddr mocks base method.

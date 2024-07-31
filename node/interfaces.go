@@ -49,6 +49,7 @@ type PeerConnectionManager interface {
 	StopSync()
 
 	GetPeerAddr() string
+
 	GetChainOverview() (<-chan common.ChainOverview, error)
 }
 

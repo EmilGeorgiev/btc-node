@@ -93,6 +93,11 @@ func (sp *ServerPeer) Sync() {
 	//	return
 	//}
 	//sp.isSyncStarted.Store(true)
+
+	if !sp.isStarted.Load() {
+		log.Println("Can't start Sync Because serverPeer is not started.")
+		return
+	}
 	sp.msgHandlersManager.Start()
 	sp.mode.Store(int64(Standard))
 	sp.peerSync.Start()

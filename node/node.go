@@ -3,8 +3,6 @@ package node
 import (
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +20,7 @@ type Node struct {
 	peerAddrs              []common.Addr
 	handshakeManager       HandshakeManager
 	getNextPeerConnMngWait time.Duration
+	reconnectWait          time.Duration
 
 	stop               chan struct{}
 	wg                 *sync.WaitGroup
@@ -30,7 +29,7 @@ type Node struct {
 
 // New returns a new Node.
 func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) PeerConnectionManager,
-	peerAddr []common.Addr, err chan PeerErr, sf chan struct{}, hm HandshakeManager, w time.Duration) (*Node, error) {
+	peerAddr []common.Addr, err chan PeerErr, sf chan struct{}, hm HandshakeManager, w time.Duration, recWait time.Duration) (*Node, error) {
 	_, ok := p2p.Networks[network]
 	if !ok {
 		return nil, fmt.Errorf("unsupported network %s", network)
@@ -49,6 +48,7 @@ func New(network, userAgent string, newServerPeer func(p2p.Peer, chan PeerErr) P
 		stop:                   make(chan struct{}, 1000),
 		notifySyncForError:     make(chan PeerErr, 1000),
 		wg:                     &sync.WaitGroup{},
+		reconnectWait:          recWait,
 	}, nil
 }
 
@@ -61,21 +61,13 @@ func (n *Node) Start() {
 	n.wg.Add(1)
 	go n.listenForPeerErrors()
 	for _, peerAddr := range n.peerAddrs {
-		if err := n.connectToPeer(peerAddr); err != nil {
-			n.peerChain.Store(peerAddr, PeerChain{})
-			n.errors <- PeerErr{
-				Peer: p2p.Peer{Address: peerAddr.String()},
-				Err:  err,
-			}
+		err := n.connectToPeer(peerAddr)
+		if err == nil {
+			continue
 		}
+		n.peerChain.Store(peerAddr, PeerChain{})
+		n.errors <- PeerErr{Peer: p2p.Peer{Address: peerAddr.String()}, Err: err}
 	}
-
-	//n.peerChain.Range(func(key, value any) bool {
-	//	n.wg.Add(1)
-	//	pch := value.(PeerChain)
-	//	go n.getChainOverview(pch)
-	//	return true
-	//})
 }
 
 func (n *Node) getChainOverview(pch PeerChain) {
@@ -154,8 +146,8 @@ func (n *Node) Stop() {
 
 func (n *Node) reconnectToPeer(addr common.Addr) {
 	defer n.wg.Done()
-	seconds := 4
-	timer := time.NewTimer(time.Duration(seconds) * time.Second)
+	seconds := n.reconnectWait
+	timer := time.NewTimer(seconds)
 	for {
 		select {
 		case <-n.stop:
@@ -168,11 +160,11 @@ func (n *Node) reconnectToPeer(addr common.Addr) {
 				return
 			}
 
-			if seconds < 7200 {
+			if n.reconnectWait < 7200 {
 				seconds = seconds * 2
 			}
 			log.Printf("reconnect to peer %s fail. The node will try again after %d seconds", addr.String(), seconds)
-			timer = time.NewTimer(time.Duration(seconds) * time.Second)
+			timer = time.NewTimer(seconds)
 		}
 	}
 }
@@ -211,104 +203,10 @@ func (n *Node) listenForPeerErrors() {
 			}
 
 			n.peerChain.Delete(addr)
-			p := strings.Split(addr, ":")
-			if len(p) != 2 {
-				log.Printf("Invalid peer IP address: %s", addr)
-				continue
-			}
-			port, err := strconv.Atoi(p[1])
-			if err != nil {
-				log.Printf("Invalid port number if IP address: %s", addr)
-				continue
-			}
-			address := common.Addr{
-				IP:   p[0],
-				Port: int64(port),
-			}
+			address := common.AddrFromString(addr)
 
 			n.wg.Add(1)
 			go n.reconnectToPeer(address)
 		}
 	}
 }
-
-//func (n *Node) getNextPeerConnMngForSync() PeerConnectionManager {
-//seconds := 1
-//tick := time.NewTimer(seconds*time.Second)
-//var pcm PeerConnectionManager
-//
-//for {
-//	select {
-//	case <-n.stop:
-//		return nil
-//	case <-tick:
-//		pcm = nil
-//
-//	}
-//}
-//}
-//
-//func (n *Node) syncPeers() {
-//	log.Println("Start Node's sync peer logic.")
-//	var pcm PeerConnectionManager
-//	for {
-//		n.peerChain.Range(func(key, value any) bool {
-//			pcm = value.(PeerConnectionManager)
-//			return false
-//		})
-//		if pcm == nil {
-//			continue
-//		}
-//		pcm.Sync()
-//		select {
-//		case <-n.stop:
-//			log.Println("Stop Node's sync peer logic.")
-//			if pcm != nil {
-//				pcm.StopSync()
-//			}
-//			n.doneSync <- struct{}{}
-//			return
-//		case peerErr := <-n.notifySyncForError:
-//			if peerErr.Peer.Address == pcm.GetPeerAddr() {
-//				pcm.StopSync()
-//			}
-//		case <-n.syncCompleted:
-//
-//		}
-//	}
-//	//	log.Println("Sync with peersssssss")
-//	//	var currentPeerConnMng PeerConnectionManager
-//	//	currentIndex := -1
-//	//Loop:
-//	//	for {
-//	//		log.Println("check for available ServerPeers")
-//	//		currentPeerConnMng, currentIndex = n.getNextPeerConnMngForSync(currentIndex)
-//	//		if currentPeerConnMng == nil {
-//	//			// this means that the method Stop is alled
-//	//			n.doneSync <- struct{}{}
-//	//			return
-//	//		}
-//	//		log.Println("NODE SYNC PEER: start SYNC. call peerconnmanager")
-//	//		currentPeerConnMng.Sync()
-//	//		for {
-//	//			select {
-//	//			case <-n.stop:
-//	//				log.Println("stop goroutine that manage Sync peers.")
-//	//				currentPeerConnMng.StopSync()
-//	//				n.doneSync <- struct{}{}
-//	//				return
-//	//			case peerErr := <-n.notifySyncForError:
-//	//				if currentPeerConnMng.GetPeerAddr() == peerErr.Peer.Address {
-//	//					log.Println("stop syncing with peer")
-//	//					currentPeerConnMng.StopSync()
-//	//					// if current peer to ehih w sync has error we continue to the next one
-//	//					continue Loop
-//	//				}
-//	//			case <-n.syncCompleted:
-//	//				fmt.Println("sync completed")
-//	//				currentPeerConnMng.StopSync()
-//	//				continue Loop
-//	//			}
-//	//		}
-//	//	}
-//}
