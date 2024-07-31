@@ -3,47 +3,47 @@ package p2p
 import "fmt"
 
 const (
-	cmdPkgtxns      = "pkgtxns"
-	cmdGetpkgtxns   = "getpkgtxns"
-	cmdAncpkginfo   = "ancpkginfo"
-	cmdSendpackages = "sendpackages"
-	cmdPing         = "ping"
+	CmdPkgtxns      = "pkgtxns"
+	CmdGetpkgtxns   = "getpkgtxns"
+	CmdAncpkginfo   = "ancpkginfo"
+	CmdSendpackages = "sendpackages"
+	CmdPing         = "ping"
 	CmdPong         = "pong"
 
 	CmdAddrv2      = "addrv2"
-	cmdSendaddrv2  = "sendaddrv2"
-	cmdVersion     = "version"
-	cmdVerack      = "verack"
-	cmdSendcmpct   = "sendcmpct"
+	CmdSendaddrv2  = "sendaddrv2"
+	CmdVersion     = "version"
+	CmdVerack      = "verack"
+	CmdSendcmpct   = "sendcmpct"
 	CmdGetheaders  = "getheaders"
-	cmdAddr        = "addr"
-	cmdInv         = "inv"
+	CmdAddr        = "addr"
+	CmdInv         = "inv"
 	CmdGetdata     = "getdata"
 	CmdWtxidrelay  = "wtxidrelay"
-	cmdNotfound    = "notfound"
-	cmdGetblocks   = "getblocks"
-	cmdTx          = "tx"
+	CmdNotfound    = "notfound"
+	CmdGetblocks   = "getblocks"
+	CmdTx          = "tx"
 	CmdBlock       = "block"
-	cmdHeaders     = "headers"
-	cmdGetadd      = "getadd"
-	cmdMempoo      = "mempoo"
-	cmdCheckorder  = "checkorder"
-	cmdSubmitorder = "submitorder"
-	cmdReply       = "reply"
-	cmdReject      = "reject"
-	cmdFilterload  = "filterload"
-	cmdFilteradd   = "filteradd"
-	cmdFilterclear = "filterclear"
-	cmdMerkleblock = "merkleblock"
-	cmdAlert       = "alert"
-	cmdSendHeaders = "sendheaders"
-	cmdFeefilter   = "feefilter"
-	cmdCmpctblock  = "cmpctblock"
-	cmdGetblocktxn = "getblocktxn"
-	cmdBlocktxn    = "blocktxn"
-	cmdMempool     = "mempool"
-	cmdGetAddr     = "getaddr"
-	commandLength  = 12
+	CmdHeaders     = "headers"
+	CmdGetadd      = "getadd"
+	CmdMempoo      = "mempoo"
+	CmdCheckorder  = "checkorder"
+	CmdSubmitorder = "submitorder"
+	CmdReply       = "reply"
+	CmdReject      = "reject"
+	CmdFilterload  = "filterload"
+	CmdFilteradd   = "filteradd"
+	CmdFilterclear = "filterclear"
+	CmdMerkleblock = "merkleblock"
+	CmdAlert       = "alert"
+	CmdSendHeaders = "sendheaders"
+	CmdFeefilter   = "feefilter"
+	CmdCmpctblock  = "cmpctblock"
+	CmdGetblocktxn = "getblocktxn"
+	CmdBlocktxn    = "blocktxn"
+	CmdMempool     = "mempool"
+	CmdGetAddr     = "getaddr"
+	CommandLength  = 12
 )
 
 const (
@@ -62,54 +62,54 @@ const (
 	SrvNodeNetworkLimited = 1024
 )
 
-var commands = map[string][commandLength]byte{
-	cmdPkgtxns:      newCommand(cmdPkgtxns),
-	cmdGetpkgtxns:   newCommand(cmdGetpkgtxns),
-	cmdAncpkginfo:   newCommand(cmdAncpkginfo),
-	cmdSendpackages: newCommand(cmdSendpackages),
-	cmdSendaddrv2:   newCommand(cmdSendaddrv2),
+var commands = map[string][CommandLength]byte{
+	CmdPkgtxns:      newCommand(CmdPkgtxns),
+	CmdGetpkgtxns:   newCommand(CmdGetpkgtxns),
+	CmdAncpkginfo:   newCommand(CmdAncpkginfo),
+	CmdSendpackages: newCommand(CmdSendpackages),
+	CmdSendaddrv2:   newCommand(CmdSendaddrv2),
 	CmdAddrv2:       newCommand(CmdAddrv2),
-	cmdVersion:      newCommand(cmdVersion),
-	cmdVerack:       newCommand(cmdVerack),
-	cmdPing:         newCommand(cmdPing),
+	CmdVersion:      newCommand(CmdVersion),
+	CmdVerack:       newCommand(CmdVerack),
+	CmdPing:         newCommand(CmdPing),
 	CmdPong:         newCommand(CmdPong),
-	cmdSendcmpct:    newCommand(cmdSendcmpct),
+	CmdSendcmpct:    newCommand(CmdSendcmpct),
 	CmdGetheaders:   newCommand(CmdGetheaders),
-	cmdAddr:         newCommand(cmdAddr),
-	cmdInv:          newCommand(cmdInv),
+	CmdAddr:         newCommand(CmdAddr),
+	CmdInv:          newCommand(CmdInv),
 	CmdGetdata:      newCommand(CmdGetdata),
 	CmdWtxidrelay:   newCommand(CmdWtxidrelay),
-	cmdNotfound:     newCommand(cmdNotfound),
-	cmdGetblocks:    newCommand(cmdGetblocks),
-	cmdTx:           newCommand(cmdTx),
+	CmdNotfound:     newCommand(CmdNotfound),
+	CmdGetblocks:    newCommand(CmdGetblocks),
+	CmdTx:           newCommand(CmdTx),
 	CmdBlock:        newCommand(CmdBlock),
-	cmdHeaders:      newCommand(cmdHeaders),
-	cmdGetadd:       newCommand(cmdGetadd),
-	cmdMempoo:       newCommand(cmdMempoo),
-	cmdCheckorder:   newCommand(cmdCheckorder),
-	cmdSubmitorder:  newCommand(cmdSubmitorder),
-	cmdReply:        newCommand(cmdReply),
-	cmdReject:       newCommand(cmdReject),
-	cmdFilterload:   newCommand(cmdFilterload),
-	cmdFilteradd:    newCommand(cmdFilteradd),
-	cmdFilterclear:  newCommand(cmdFilterclear),
-	cmdMerkleblock:  newCommand(cmdMerkleblock),
-	cmdAlert:        newCommand(cmdAlert),
-	cmdSendHeaders:  newCommand(cmdSendHeaders),
-	cmdFeefilter:    newCommand(cmdFeefilter),
-	cmdCmpctblock:   newCommand(cmdCmpctblock),
-	cmdGetblocktxn:  newCommand(cmdGetblocktxn),
-	cmdBlocktxn:     newCommand(cmdBlocktxn),
+	CmdHeaders:      newCommand(CmdHeaders),
+	CmdGetadd:       newCommand(CmdGetadd),
+	CmdMempoo:       newCommand(CmdMempoo),
+	CmdCheckorder:   newCommand(CmdCheckorder),
+	CmdSubmitorder:  newCommand(CmdSubmitorder),
+	CmdReply:        newCommand(CmdReply),
+	CmdReject:       newCommand(CmdReject),
+	CmdFilterload:   newCommand(CmdFilterload),
+	CmdFilteradd:    newCommand(CmdFilteradd),
+	CmdFilterclear:  newCommand(CmdFilterclear),
+	CmdMerkleblock:  newCommand(CmdMerkleblock),
+	CmdAlert:        newCommand(CmdAlert),
+	CmdSendHeaders:  newCommand(CmdSendHeaders),
+	CmdFeefilter:    newCommand(CmdFeefilter),
+	CmdCmpctblock:   newCommand(CmdCmpctblock),
+	CmdGetblocktxn:  newCommand(CmdGetblocktxn),
+	CmdBlocktxn:     newCommand(CmdBlocktxn),
 }
 
-func newCommand(command string) [commandLength]byte {
+func newCommand(command string) [CommandLength]byte {
 	l := len(command)
-	if l > commandLength {
+	if l > CommandLength {
 		panic(fmt.Sprintf("command %s is too long\n", command))
 	}
 
-	var packed [commandLength]byte
-	buf := make([]byte, commandLength-l)
+	var packed [CommandLength]byte
+	buf := make([]byte, CommandLength-l)
 	copy(packed[:], append([]byte(command), buf...)[:])
 
 	return packed

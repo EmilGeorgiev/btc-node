@@ -1,16 +1,9 @@
 package p2p
 
 import (
-	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
-)
 
-const (
-	DataObjectError = iota
-	DataObjectTx
-	DataObjectBlock
-	DataObjectFilterBlock
-	DataObjectCmpctBlock
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 )
 
 // MsgInv represents 'inv' message.
@@ -45,3 +38,5 @@ type InvVector struct {
 	Type uint32
 	Hash [32]byte
 }
+
+type Unknown struct{}

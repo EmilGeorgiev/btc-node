@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"time"
 
@@ -11,20 +12,22 @@ import (
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 )
 
+// MessageReadWriter manages reading and writing messages over a network connection with specified timeouts.
 type MessageReadWriter struct {
 	readConnTimeout  time.Duration
 	writeConnTimeout time.Duration
 }
 
+// NewMessageReadWriter creates a new MessageReadWriter with the given read and write timeouts.
 func NewMessageReadWriter(rTimeout, wTimeout time.Duration) MessageReadWriter {
-	fmt.Println("rTimeout:", rTimeout)
-	fmt.Println("wTimeout", wTimeout)
 	return MessageReadWriter{
 		readConnTimeout:  rTimeout,
 		writeConnTimeout: wTimeout,
 	}
 }
 
+// ReadMessage reads a message from the given network connection and decode it.
+// The returned interface's type is one of MsgHeaders, MsgPing, MsgBlock and others
 func (ml MessageReadWriter) ReadMessage(conn net.Conn) (interface{}, error) {
 	tmp := make([]byte, p2p.MsgHeaderLength)
 	conn.SetReadDeadline(time.Now().Add(ml.readConnTimeout))
@@ -35,14 +38,12 @@ func (ml MessageReadWriter) ReadMessage(conn net.Conn) (interface{}, error) {
 	return ml.handleMessage(tmp[:bn], conn)
 }
 
+// handleMessage processes the message header and reads the message payload from the connection.
 func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (interface{}, error) {
-	//log.Printf("received msg with header: %x\n", headerRaw)
 	var msgHeader p2p.MessageHeader
 	if err := binary.NewDecoder(bytes.NewReader(headerRaw)).Decode(&msgHeader); err != nil {
 		return nil, err
 	}
-
-	//log.Printf("read msg %s with lenght: %d and prevblock raw header: %x\n", msgHeader.CommandString(), msgHeader.Length, headerRaw)
 
 	payloadLength := int(msgHeader.Length)
 	payload := make([]byte, 0, payloadLength)
@@ -71,12 +72,10 @@ func (ml MessageReadWriter) handleMessage(headerRaw []byte, conn net.Conn) (inte
 		return nil, fmt.Errorf("Expected to read %d bytes, but only read %d\n", payloadLength, len(payload))
 	}
 
-	//fmt.Printf("payload for msg with header: %x ISS: %x'n", headerRaw, payload)
 	return ml.decodeMessage(payload, msgHeader.CommandString())
 }
 
 func (ml MessageReadWriter) decodeMessage(payload []byte, command string) (interface{}, error) {
-	//fmt.Printf("received message: %s\n", command)
 	buf := bytes.NewBuffer(payload)
 
 	switch command {
@@ -110,15 +109,13 @@ func (ml MessageReadWriter) decodeMessage(payload []byte, command string) (inter
 			return nil, err
 		}
 		return &msg, nil
-	case "getheaders":
-		//fmt.Printf("payload is: %x\n", payload)
-		return &p2p.MsgInv{}, nil
 	default:
-		//log.Println("missing logic for message with command: ", command)
-		return &p2p.MsgInv{}, nil
+		log.Println("missing logic for message with command: ", command)
+		return &p2p.Unknown{}, nil
 	}
 }
 
+// WriteMessage writes a message to the given network connection.
 func (ml MessageReadWriter) WriteMessage(msg *p2p.Message, conn net.Conn) error {
 	rawMsg, err := binary.Marshal(msg)
 	if err != nil {

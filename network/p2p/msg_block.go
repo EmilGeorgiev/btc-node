@@ -3,17 +3,18 @@ package p2p
 import (
 	"bytes"
 	"crypto/sha256"
-	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
+
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 )
 
+// MsgBlock represents a Bitcoin block, including its header and transactions.
 type MsgBlock struct {
 	BlockHeader
 	Transactions []MsgTx
 }
 
-var count int
-
+// MarshalBinary serializes the MsgBlock into a byte slice.
 func (mb MsgBlock) MarshalBinary() ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 
@@ -39,20 +40,13 @@ func (mb MsgBlock) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// UnmarshalBinary deserializes data from an io.Reader into the MsgBlock.
 func (mb *MsgBlock) UnmarshalBinary(r io.Reader) error {
 	d := binary.NewDecoder(r)
 	if err := d.Decode(&mb.BlockHeader); err != nil {
 		return err
 	}
 
-	//hash := mb.GetHash()
-	//log.Printf("Block HASH-HASH-HASH-HASH that failed: %x\n The prev block hash is: %x\n", Reverse(hash), Reverse(mb.PrevBlockHash))
-
-	//count++
-	//if count == 20 {
-	//	time.Sleep(10 * time.Second)
-	//	panic("stop to see the blocks")
-	//}
 	mb.Transactions = make([]MsgTx, mb.BlockHeader.TxnCount)
 	for i := VarInt(0); i < mb.BlockHeader.TxnCount; i++ {
 
@@ -66,12 +60,14 @@ func (mb *MsgBlock) UnmarshalBinary(r io.Reader) error {
 	return nil
 }
 
+// GetHash calculates and returns the double SHA-256 hash of the block header.
 func (mb *MsgBlock) GetHash() [32]byte {
 	b, _ := binary.Marshal(mb.BlockHeader)
 	firstHash := sha256.Sum256(b[:80])
 	return sha256.Sum256(firstHash[:])
 }
 
+// Reverse reverses a 32-byte array.
 func Reverse(input [32]byte) []byte {
 	l := len(input)
 	reversed := make([]byte, l)
@@ -81,6 +77,3 @@ func Reverse(input [32]byte) []byte {
 	}
 	return reversed
 }
-
-//0000000068d61900e15a089c931e8365ae63f74fc1a6a246b6f1b3726fe28c0a
-//000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f

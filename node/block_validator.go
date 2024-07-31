@@ -11,23 +11,20 @@ import (
 	"math/big"
 )
 
+// BlockValidator is responsible for validating blocks ( headers and transactions).
 type BlockValidator struct {
 	blockRepo BlockRepository
 }
 
+// NewBlockValidator creates a new BlockValidator with the given BlockRepository.
 func NewBlockValidator(br BlockRepository) BlockValidator {
 	return BlockValidator{
 		blockRepo: br,
 	}
 }
 
-var zero = [32]byte{
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-}
-
+// Validate checks if the given block is valid by performing various checks like
+// previous block hash, hash is bellow the target, merkle tree validation and others.
 func (bv BlockValidator) Validate(bl *p2p.MsgBlock) error {
 	if err := bv.lastBlockHashMustBePreviousForTheCurrentOne(bl); err != nil {
 		return err
@@ -44,6 +41,7 @@ func (bv BlockValidator) Validate(bl *p2p.MsgBlock) error {
 	return nil
 }
 
+// ValidateMerkleTree checks if the Merkle tree of the block is valid.
 func (bv BlockValidator) ValidateMerkleTree(bl *p2p.MsgBlock) bool {
 	if bl.TxnCount == 1 {
 		h := HashTx(bl.Transactions[0])
@@ -63,10 +61,6 @@ func (bv BlockValidator) ValidateMerkleTree(bl *p2p.MsgBlock) bool {
 	for len(txHashes) > 1 {
 		var newLevel [][]byte
 		for i := 0; i < len(txHashes); i += 2 {
-			//if i+1 == len(txHashes) {
-			//	// Duplicate the last element if the number of elements is odd
-			//	txHashes = append(txHashes, txHashes[i])
-			//}
 			concatenated := append(txHashes[i], txHashes[i+1]...)
 			newLevel = append(newLevel, DHash(concatenated))
 		}
@@ -75,12 +69,14 @@ func (bv BlockValidator) ValidateMerkleTree(bl *p2p.MsgBlock) bool {
 	return bl.MerkleRoot == [32]byte(txHashes[0])
 }
 
+// DHash performs double SHA-256 hashing on the given byte slice.
 func DHash(b []byte) []byte {
-	firsthash := sha256.Sum256(b)
-	h := sha256.Sum256(firsthash[:])
+	firstHash := sha256.Sum256(b)
+	h := sha256.Sum256(firstHash[:])
 	return h[:]
 }
 
+// HashTx calculates the double SHA-256 hash of the given transaction.
 func HashTx(tx p2p.MsgTx) []byte {
 	b, _ := binary.Marshal(tx)
 	firstHash := sha256.Sum256(b)
@@ -88,6 +84,8 @@ func HashTx(tx p2p.MsgTx) []byte {
 	return h[:]
 }
 
+// lastBlockHashMustBePreviousForTheCurrentOne checks if the last block hash in
+// the repository matches the previous block hash of the current block.
 func (bv BlockValidator) lastBlockHashMustBePreviousForTheCurrentOne(bl *p2p.MsgBlock) error {
 	lastBlockHash := [32]byte{}
 	lastBlock, err := bv.blockRepo.GetLast()
@@ -109,7 +107,7 @@ func (bv BlockValidator) lastBlockHashMustBePreviousForTheCurrentOne(bl *p2p.Msg
 	return nil
 }
 
-// target is a 256 bit numbe
+// BitsToTarget converts the compact representation of the target into a big.Int.
 func BitsToTarget(bits uint32) *big.Int {
 	exponent := bits >> 24
 	mantissa := bits & 0xffffff
@@ -118,7 +116,7 @@ func BitsToTarget(bits uint32) *big.Int {
 	return target
 }
 
-// ValidateBlockHash ...
+// blockHashLessThanTargetDifficulty checks if the block hash is less than the target difficulty.
 func blockHashLessThanTargetDifficulty(headers *p2p.BlockHeader) bool {
 	hashBig := new(big.Int).SetBytes(p2p.Reverse(Hash(*headers)))
 	target := BitsToTarget(headers.Bits)

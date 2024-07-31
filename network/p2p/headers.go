@@ -2,13 +2,15 @@ package p2p
 
 import (
 	"bytes"
-	"fmt"
-	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"io"
+
+	"github.com/EmilGeorgiev/btc-node/network/binary"
 )
 
+// VarInt represents a Bitcoin protocol variable-length integer.
 type VarInt uint64
 
+// UnmarshalBinary decodes a VarInt from the given io.Reader.
 func (v *VarInt) UnmarshalBinary(r io.Reader) error {
 	d := binary.NewDecoder(r)
 	var i uint8
@@ -42,6 +44,7 @@ func (v *VarInt) UnmarshalBinary(r io.Reader) error {
 	return nil
 }
 
+// MarshalBinary encodes a VarInt into a byte slice.
 func (v VarInt) MarshalBinary() ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 
@@ -71,11 +74,14 @@ func (v VarInt) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// MsgHeaders represents a Bitcoin protocol "headers" message.
 type MsgHeaders struct {
-	Count        VarInt
-	BlockHeaders []BlockHeader
+	Count        VarInt        // The number of block headers.
+	BlockHeaders []BlockHeader // The block headers.
 }
 
+// UnmarshalBinary decodes a MsgHeaders from the given io.Reader.. Return an error if can't
+// decode properly the headers
 func (h *MsgHeaders) UnmarshalBinary(r io.Reader) error {
 	d := binary.NewDecoder(r)
 	if err := d.Decode(&h.Count); err != nil {
@@ -84,9 +90,6 @@ func (h *MsgHeaders) UnmarshalBinary(r io.Reader) error {
 
 	h.BlockHeaders = make([]BlockHeader, h.Count)
 	for i := VarInt(0); i < h.Count; i++ {
-		if i == VarInt(1840) {
-			fmt.Println()
-		}
 		var bh BlockHeader
 		if err := d.Decode(&bh); err != nil {
 			return err
@@ -97,7 +100,9 @@ func (h *MsgHeaders) UnmarshalBinary(r io.Reader) error {
 	return nil
 }
 
+// BlockHeader represents the header of a Bitcoin block.
 type BlockHeader struct {
+	// Block Version
 	Version int32
 
 	//The hash value of the previous block this particular block references
@@ -118,7 +123,3 @@ type BlockHeader struct {
 	// Number of transaction entries, this value is always 0
 	TxnCount VarInt
 }
-
-// 1. Send getdata Message: Request full blocks based on the headers.
-
-// 2. Receive Blocks: Process and store the blocks.
