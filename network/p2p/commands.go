@@ -23,7 +23,7 @@ const (
 	cmdNotfound    = "notfound"
 	cmdGetblocks   = "getblocks"
 	cmdTx          = "tx"
-	cmdBlock       = "block"
+	CmdBlock       = "block"
 	cmdHeaders     = "headers"
 	cmdGetadd      = "getadd"
 	cmdMempoo      = "mempoo"
@@ -82,7 +82,7 @@ var commands = map[string][commandLength]byte{
 	cmdNotfound:     newCommand(cmdNotfound),
 	cmdGetblocks:    newCommand(cmdGetblocks),
 	cmdTx:           newCommand(cmdTx),
-	cmdBlock:        newCommand(cmdBlock),
+	CmdBlock:        newCommand(CmdBlock),
 	cmdHeaders:      newCommand(cmdHeaders),
 	cmdGetadd:       newCommand(cmdGetadd),
 	cmdMempoo:       newCommand(cmdMempoo),

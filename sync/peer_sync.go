@@ -93,7 +93,6 @@ func (cs *PeerSync) getChainOverview(peerAddr string, ch chan common.ChainOvervi
 	cho := common.ChainOverview{Peer: peerAddr, CumulativeWork: big.NewInt(0), IsValid: true}
 	timer := time.NewTimer(30 * time.Second)
 	var lastHeadersValResult RequestedHeaders
-	log.Println("Call RequestHeaders from last block in PeerSync.getChainOverview: ", time.Now().String())
 	_ = cs.headerRequester.RequestHeadersFromLastBlock()
 
 Loop:
@@ -158,11 +157,9 @@ func (cs *PeerSync) start() {
 			return
 		case lastSavedHeaders := <-cs.requestedHeaders:
 			timer.Reset(cs.syncWait)
-			log.Println("Call RequestHeadersFromBlockHash in PeerSync.start.case1:", time.Now().String())
 			_ = cs.headerRequester.RequestHeadersFromBlockHash(lastSavedHeaders.GetLastBlockHeaderHash())
 		case <-timer.C:
 			timer.Reset(cs.syncWait)
-			log.Println("Call PeerSync.start.requestHeaders case2:", time.Now().String())
 			cs.requestHeaders()
 		}
 	}

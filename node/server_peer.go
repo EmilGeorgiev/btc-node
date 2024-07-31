@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/EmilGeorgiev/btc-node/common"
-	errors2 "github.com/EmilGeorgiev/btc-node/errors"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
 	"log"
 	"net"
@@ -84,16 +83,6 @@ func (sp *ServerPeer) GetChainOverview() (<-chan common.ChainOverview, error) {
 }
 
 func (sp *ServerPeer) Sync() {
-	//if !sp.isStarted.Load() {
-	//	log.Println("server peer not started")
-	//	return
-	//}
-	//if sp.isSyncStarted.Load() {
-	//	log.Println("sync process with this peer is already started.")
-	//	return
-	//}
-	//sp.isSyncStarted.Store(true)
-
 	if !sp.isStarted.Load() {
 		log.Println("Can't start Sync Because serverPeer is not started.")
 		return
@@ -134,7 +123,7 @@ func (sp *ServerPeer) handleIncomingMsgs(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-sp.stop:
-			log.Println("Stop goroutine that handle incomming messages from peer: ", addr)
+			log.Println("Stop goroutine that handle incoming messages from peer: ", addr)
 			return
 		default:
 			msg, err := sp.networkMessageHandler.ReadMessage(conn)
@@ -145,7 +134,7 @@ func (sp *ServerPeer) handleIncomingMsgs(wg *sync.WaitGroup) {
 				}
 				sp.errors <- PeerErr{
 					Peer: sp.peer,
-					Err:  errors2.NewE(fmt.Sprintf("receive an error while reading from peer: %s.", addr), err, true),
+					Err:  fmt.Errorf("receive an error while reading from peer: %s", err),
 				}
 
 				log.Println("server peer stop itself")
@@ -181,7 +170,7 @@ func (sp *ServerPeer) handOutgoingMsgs(wg *sync.WaitGroup) {
 				}
 				sp.errors <- PeerErr{
 					Peer: sp.peer,
-					Err:  errors2.NewE(fmt.Sprintf("receive an error while write to peer: %s.", addr), err, true),
+					Err:  fmt.Errorf("receive an error while write to peer: %s", err),
 				}
 				go sp.Stop()
 				return
