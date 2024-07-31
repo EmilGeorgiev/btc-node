@@ -60,4 +60,16 @@ and out/in messages queues (which are maintained from ServerPer):
 In the folder cmd/btc-node there is a file example_config.yaml. It contains an example of the config values 
 that you can provide when you run the node.
 
+First build it:
+```azure
+go build .
+```
+Then run the excutable file and provide the flags 'config' anf 'logs_path'. Config is the path to the configuration file. logs_path 
+is the path to the file where th logs wil be saved ( by default /tmp/app.log will be used):
+
+```azure
+./btc-node -config=<path-to-your-config-file> -logs_path=<path tpt he logs file>
+```
+
+
 
