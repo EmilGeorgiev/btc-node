@@ -75,7 +75,7 @@ func Run(cfg Config) {
 
 	hm := p2p.NewHandshakeManager()
 	peerErr := make(chan node.PeerErr, 1000)
-	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr, syncCompleted, hm, cfg.GetNextPeerConnMngWait)
+	n, err := node.New(cfg.Network, cfg.UserAgent, newServerPeer, cfg.PeerAddrs, peerErr, syncCompleted, hm, cfg.GetNextPeerConnMngWait, cfg.ReconnectWait)
 	if err != nil {
 		log.Fatalf("failed to initialize the Node: %s", err)
 	}

@@ -24,6 +24,7 @@ type Config struct {
 	WriteTimeout           time.Duration
 	SyncWait               time.Duration
 	GetNextPeerConnMngWait time.Duration
+	ReconnectWait          time.Duration
 }
 
 func (c Config) Validate() error {
