@@ -3,13 +3,13 @@ package node
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/EmilGeorgiev/btc-node/sync"
 	"log"
 	"math/big"
 	"sync/atomic"
 
 	"github.com/EmilGeorgiev/btc-node/network/binary"
 	"github.com/EmilGeorgiev/btc-node/network/p2p"
+	"github.com/EmilGeorgiev/btc-node/sync"
 )
 
 type MsgHeadersHandler struct {
@@ -21,7 +21,7 @@ type MsgHeadersHandler struct {
 	stop                  chan struct{}
 	done                  chan struct{}
 	isStarted             atomic.Bool
-	headersOverviews      chan<- sync.RequestedHeaders //[]p2p.BlockHeader
+	headersOverviews      chan<- sync.RequestedHeaders
 }
 
 func NewMsgHeaderHandler(n string, out chan<- *p2p.Message, h <-chan *p2p.MsgHeaders,
@@ -118,6 +118,7 @@ func (mh *MsgHeadersHandler) handleHeaders() {
 		}
 	}
 }
+
 func Hash(bh p2p.BlockHeader) [32]byte {
 	b, _ := binary.Marshal(bh)
 	firstHash := sha256.Sum256(b[:80])
@@ -130,7 +131,6 @@ func ValidateChain(headers []p2p.BlockHeader) (*big.Int, bool) {
 		if headers[i].PrevBlockHash != Hash(headers[i-1]) {
 			h := headers[i].PrevBlockHash
 			log.Printf("block's previous block hash is different. prev block hash: %x\n", p2p.Reverse(h))
-			//log.Printf("prev: %x current %x", p2p.Reverse(headers[i].PrevBlockHash), p2p.Reverse(Hash(headers[i-1])[:]))
 			return nil, false
 		}
 		if !blockHashLessThanTargetDifficulty(&headers[i]) {
