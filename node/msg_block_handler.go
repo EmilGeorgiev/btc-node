@@ -67,8 +67,8 @@ func (mh *MsgBlockHandler) handleMsgBlock() {
 			if len(expectedHeaders.BlockHeaders) > 0 {
 				nextBlockHeader = expectedHeaders.BlockHeaders[0]
 				log.Printf("Set expected headers in BlockHandler.  len: %d\n", len(expectedHeaders.BlockHeaders))
-				log.Printf("First block hash in exp headers is: %x\n", p2p.Reverse(Hash(expectedHeaders.BlockHeaders[0])))
-				log.Printf("Prev before exp headers is: %x\n", p2p.Reverse(expectedHeaders.BlockHeaders[0].PrevBlockHash))
+				log.Printf("First block hash in exp headers is: %x\n", Hash(expectedHeaders.BlockHeaders[0]))
+				log.Printf("Prev before exp headers is: %x\n", expectedHeaders.BlockHeaders[0].PrevBlockHash)
 			}
 
 		case block := <-mh.blocks:
