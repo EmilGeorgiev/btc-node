@@ -17,18 +17,36 @@ Peer 3 has blocks: block1, block2 with a cumulative PoW of 60
 The Node will choose to sync with Peer 1. The cumulative PoW is chosen, even though Peer 2 has more 
 blocks in its chain. The first network is the most secure of these three.
 
-The Node also run goroutine that listen for on lower levels. When an error is raised that interrupt
-the connection with the peers, an error is send through a channel. Node handle this error and try to reconnect 
-to the peer. 
+The Node also runs a goroutine that listens on lower levels. When an error occurs that interrupts the connection with 
+the peers, an error message is sent through a channel. The Node handles this error and attempts to reconnect to the peer. 
+Here is an overview of the communication between the 'Node' and its 'ServerPeer' instances:
+
+![Diagram of the BTC Node](docs/node-serverpeer.png)
+
+
+Step 1 - When an outgoing/incoming handshake connection is established and a new ServerPeer instance is created, the Node 
+always starts with GetChainOverview. In this first step, the node gets information about what chain the peer contains, 
+how long it is, its validity, and the common cumulative Proof of Work (PoW) for all blocks.
+
+Step 2 - If the node decides that this is the best peer to sync with, it initializes a sync process with that peer. See 
+the [Sync workflow diagram](#sync-flow) for more details.
+
+Step 3 - If an error arises within any of the goroutines inside the ServerPeer, it is sent to the 'Node'. The error type 
+is custom and contains information about the kind of error, where it occurred, and whether it is retryable or not. Based 
+on the information inside the error, the Node can decide what to do, such as reconnecting to the peer if the error is a 
+network connectivity issue, or stopping the connection and blocking the peer if it sends malicious data or violates the 
+Bitcoin protocol.
+
+Step 4 - Finally, the Node can gracefully stop the ServerPeer if it receives a signal to interrupt.
 
 ## ServerPeer
 When a new connection is established, a new ServerPeer instance is created. ServerPeer runs two goroutines: one for 
 listening to incoming messages from the peer and another for outgoing messages that need to be sent to the peer.
 
-Additionally, ServerPeer has methods to trigger the 'sync-overview' and 'sync' processes.
+Additionally, ServerPeer has methods to trigger the 'sync-overview' and 'sync' processes with the peer.
 
-When a new incoming message is received, its type is checked and it is routed to its handler.
-When outgoing message is received from a channel it is send to the peer. 
+When a new incoming message is received from the TCP connection, its type is checked and it is routed to its handler.
+When outgoing message is received from a channel it is send to the peer through the TCP connection. 
 
 ## PeerSync
 PeerSync contains the logic for getting an overview of the chain. Based on this overview, the Node can decide whether 
@@ -54,7 +72,9 @@ the next iteration of sync.
 Here is the workflow diagram between PeerSync, HeadersHandler, BlocksHandler 
 and out/in messages queues (which are maintained from ServerPer):
 
-![Diagram of the BTC Node](docs/sync-workflow.png)
+#### sync-flow:
+
+![Diagram of the sync workflow](docs/sync-workflow.png)
 
 ## Run the node:
 In the folder cmd/btc-node there is a file example_config.yaml. It contains an example of the config values 
@@ -70,6 +90,3 @@ is the path to the file where th logs wil be saved ( by default /tmp/app.log wil
 ```azure
 ./btc-node -config=<path-to-your-config-file> -logs_path=<path tpt he logs file>
 ```
-
-
-
