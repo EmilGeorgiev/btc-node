@@ -1,9 +1,24 @@
 # btc-node
-btn-node is an implementation of the Bitcoin protocol in Go. Here is an overview diagram:
+btn-node is an implementation of the Bitcoin protocol in Go.
+
+## Contents
+- [Overview](#overview)
+- [Types and their role](#types-and-their-role)
+    - [Node](#node)
+    - [ServerPeer](#serverpeer)
+    - [PeerSync](#peersync)
+    - [MessageHandlersManager](#messagehandlersmanager)
+    - [MsgHeadersHandler](#msgheadershandler)
+    - [MsgBlockHandler](#msgblockhandler)
+    - [Sync workflow diagram](#sync-flow)
+    - [Run the program](#run-the-program)
+
+### Overview
+This is a diagram that shows a height level overview of the implementation
 
 ![Diagram of the BTC Node](docs/overview.png)
 
-## Node
+### Node
 At the top is the Node. When the program starts, it connects to a list of peers. If the server is started for the first 
 time, an initial handshake is made with the peers, and the Node runs the chain overview process. 
 During this process, GetHeaders messages are sent from the genesis block to the last block in the chain. 
@@ -39,7 +54,7 @@ Bitcoin protocol.
 
 Step 4 - Finally, the Node can gracefully stop the ServerPeer if it receives a signal to interrupt.
 
-## ServerPeer
+### ServerPeer
 When a new connection is established, a new ServerPeer instance is created. ServerPeer runs two goroutines: one for 
 listening to incoming messages from the peer and another for outgoing messages that need to be sent to the peer.
 
@@ -48,23 +63,23 @@ Additionally, ServerPeer has methods to trigger the 'sync-overview' and 'sync' p
 When a new incoming message is received from the TCP connection, its type is checked and it is routed to its handler.
 When outgoing message is received from a channel it is send to the peer through the TCP connection. 
 
-## PeerSync
+### PeerSync
 PeerSync contains the logic for getting an overview of the chain. Based on this overview, the Node can decide whether 
 to sync with the peer. Both the Overview and Sync processes always start from the last block saved in the DB. These 
 two processes begin with sending an outgoing getHeaders message. Before sending the message, PeerSync sends the block 
 hash (the starting block hash) to the headers handler. This ensures the headers handler can identify whether the 
 received headers were requested. If not, they will be rejected.
 
-## MessageHandlersManager
+### MessageHandlersManager
 MessageHandlersManager maintains a list of handlers. Each handler processes a different message type in a separate 
 goroutine. It starts and stops these handlers as necessary.
 
-## MsgHeadersHandler
+### MsgHeadersHandler
 Handles incoming MsgHeaders. It checks whether the message was requested; if not, it is rejected. If the message is 
 expected (requested), it validates the headers, calculates the cumulative PoW, sends an outgoing GetData message, 
 and notifies the MsgBlockHandler about which blocks to expect.
 
-## MsgBlockHandler
+### MsgBlockHandler
 MsgBlockHandler handles incoming block messages, validates them, and stores them in the DB. It knows which blocks are 
 expected from MsgHeadersHandler. When the last expected block is processed, the block handler notifies PeerSync to run 
 the next iteration of sync.
@@ -76,7 +91,7 @@ and out/in messages queues (which are maintained from ServerPer):
 
 ![Diagram of the sync workflow](docs/sync-workflow.png)
 
-## Run the node:
+### Run the program:
 In the folder cmd/btc-node there is a file example_config.yaml. It contains an example of the config values 
 that you can provide when you run the node.
 
